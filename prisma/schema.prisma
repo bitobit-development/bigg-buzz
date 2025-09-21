@@ -1,0 +1,98 @@
+// Minimal Prisma schema for testing registration flow
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Minimal User model for testing registration
+model User {
+  id                  String   @id @default(cuid())
+  email               String?  @unique
+  phone               String?  @unique
+  saId                String?  @unique // Encrypted SA ID
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  role                UserRole @default(CUSTOMER)
+  isActive            Boolean  @default(true)
+  marketingConsent    Boolean  @default(false)
+  marketingConsentDate DateTime?
+  termsAccepted       Boolean  @default(false)
+  termsAcceptedDate   DateTime?
+  privacyAccepted     Boolean  @default(false)
+  privacyAcceptedDate DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations (minimal)
+  tokens           UserToken[]
+  complianceEvents ComplianceEvent[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Authentication Tokens for OTP
+model UserToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_tokens")
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+  OTP_LOGIN
+  OTP_REGISTRATION
+  ACCESS_TOKEN
+  REFRESH_TOKEN
+}
+
+// Compliance Events for auditing
+model ComplianceEvent {
+  id          String              @id @default(cuid())
+  userId      String?
+  eventType   ComplianceEventType
+  description String
+  metadata    String?             // JSON as text for SQLite
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime            @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("compliance_events")
+}
+
+enum ComplianceEventType {
+  USER_REGISTRATION
+  ID_VERIFICATION
+  AGE_VERIFICATION
+  ORDER_PLACED
+  PAYMENT_PROCESSED
+  PRODUCT_DELIVERED
+  ACCOUNT_SUSPENDED
+  DATA_ACCESS
+  DATA_MODIFICATION
+  LOGIN_ATTEMPT
+  SECURITY_ALERT
+}

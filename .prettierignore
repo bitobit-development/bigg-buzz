@@ -1,0 +1,32 @@
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Build files
+.next/
+out/
+dist/
+build/
+
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env*
+
+# Package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

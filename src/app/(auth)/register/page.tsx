@@ -1,0 +1,988 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MobileInput } from '@/components/ui/mobile-input';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { validateSAID, parseSAID, validatePhoneNumber, normalizePhoneNumber, unformatPhoneNumber } from '@/lib/validation';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { useDeviceDetection, getResponsiveClasses, getOptimalFormLayout, getDeviceContainerClasses } from '@/lib/utils/device';
+import { Loader2, CheckCircle, AlertCircle, Shield, User, Phone, FileText, MessageSquare, Timer } from 'lucide-react';
+import Link from 'next/link';
+
+type RegistrationStep = 'identity' | 'personal-info' | 'mobile-verification' | 'terms-conditions' | 'complete';
+
+interface FormData {
+  saId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  marketingConsent: boolean;
+  ageVerification: boolean;
+  termsAccepted: boolean;
+  privacyAccepted: boolean;
+}
+
+interface SAIDInfo {
+  dateOfBirth: Date;
+  age: number;
+  gender: string;
+  isSACitizen: boolean;
+  isValidAge: boolean;
+}
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const { setLoading, login } = useAuthStore();
+  const deviceInfo = useDeviceDetection();
+  const responsiveClasses = getResponsiveClasses(deviceInfo);
+
+  const [currentStep, setCurrentStep] = useState<RegistrationStep>('identity');
+  const [formData, setFormData] = useState<FormData>({
+    saId: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    marketingConsent: false,
+    ageVerification: false,
+    termsAccepted: false,
+    privacyAccepted: false,
+  });
+
+  const [saIdInfo, setSAIdInfo] = useState<SAIDInfo | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [userId, setUserId] = useState<string>('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'sms' | 'whatsapp'>('sms');
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const [otpAttempts, setOtpAttempts] = useState(0);
+
+  // Countdown timer for resend OTP
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
+
+  const validateCurrentStep = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    switch (currentStep) {
+      case 'identity':
+        if (!formData.saId) {
+          newErrors.saId = 'SA ID is required';
+        } else if (!validateSAID(formData.saId)) {
+          newErrors.saId = 'Invalid SA ID number';
+        } else {
+          try {
+            const idInfo = parseSAID(formData.saId);
+            if (!idInfo.isValidAge) {
+              newErrors.saId = 'You must be at least 18 years old to register';
+            } else {
+              setSAIdInfo(idInfo);
+            }
+          } catch (error) {
+            newErrors.saId = 'Invalid SA ID number';
+          }
+        }
+
+        if (!formData.ageVerification) {
+          newErrors.ageVerification = 'Age verification is required';
+        }
+        break;
+
+      case 'personal-info':
+        if (!formData.firstName.trim()) {
+          newErrors.firstName = 'First name is required';
+        }
+        if (!formData.lastName.trim()) {
+          newErrors.lastName = 'Last name is required';
+        }
+        if (!formData.phone) {
+          newErrors.phone = 'Phone number is required';
+        } else if (!validatePhoneNumber(unformatPhoneNumber(formData.phone))) {
+          newErrors.phone = 'Invalid phone number format';
+        }
+        if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+          newErrors.email = 'Invalid email format';
+        }
+        break;
+
+      case 'mobile-verification':
+        if (!otp || otp.length !== 6) {
+          newErrors.otp = 'Please enter the complete 6-digit verification code';
+        }
+        if (otpAttempts >= 3) {
+          newErrors.otp = 'Too many failed attempts. Please request a new code';
+        }
+        break;
+
+      case 'terms-conditions':
+        if (!formData.termsAccepted) {
+          newErrors.termsAccepted = 'You must accept the terms and conditions';
+        }
+        if (!formData.privacyAccepted) {
+          newErrors.privacyAccepted = 'You must accept the privacy policy';
+        }
+        break;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = async () => {
+    if (!validateCurrentStep()) return;
+
+    switch (currentStep) {
+      case 'identity':
+        setCurrentStep('personal-info');
+        break;
+      case 'personal-info':
+        setCurrentStep('mobile-verification');
+        await handleRegistration();
+        break;
+      case 'mobile-verification':
+        await handleOTPVerification();
+        break;
+      case 'terms-conditions':
+        await handleFinalSubmission();
+        break;
+    }
+  };
+
+  const handleRegistration = async () => {
+    setIsLoading(true);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          saId: formData.saId,
+          phone: normalizePhoneNumber(unformatPhoneNumber(formData.phone)),
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
+          email: formData.email?.trim() || undefined,
+          marketingConsent: formData.marketingConsent,
+          termsAccepted: formData.termsAccepted,
+          privacyAccepted: formData.privacyAccepted,
+          channel: deliveryMethod,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (response.status === 409 && data.code === 'USER_EXISTS') {
+          // User already exists - show error with redirect option
+          toast.error(data.error, {
+            duration: 8000,
+            action: {
+              label: 'Sign In Instead',
+              onClick: () => router.push('/sign-in'),
+            },
+          });
+          return; // Don't throw error, just return
+        }
+
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      setUserId(data.userId);
+      setOtpSent(true);
+      setResendCountdown(60); // Start with 60 second cooldown
+      toast.success(`Registration successful! Verification code sent via ${deliveryMethod.toUpperCase()}.`);
+
+    } catch (error) {
+      console.error('Registration error:', error);
+
+      // Handle specific error types
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+
+        // Check if the error indicates a user already exists
+        if (errorMessage.includes('already exists')) {
+          // Show error with option to redirect to sign-in
+          toast.error(errorMessage, {
+            duration: 6000,
+            action: {
+              label: 'Sign In',
+              onClick: () => router.push('/sign-in'),
+            },
+          });
+        } else {
+          toast.error(errorMessage);
+        }
+      } else {
+        toast.error('Registration failed');
+      }
+    } finally {
+      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleOTPVerification = async () => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: normalizePhoneNumber(unformatPhoneNumber(formData.phone)),
+          otp: otp,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setOtpAttempts(prev => prev + 1);
+        if (otpAttempts >= 2) {
+          toast.error('Too many failed attempts. Please request a new verification code.');
+          setOtp('');
+          setOtpAttempts(0);
+        } else {
+          toast.error(data.error || 'Invalid verification code. Please try again.');
+        }
+        throw new Error(data.error || 'OTP verification failed');
+      }
+
+      setCurrentStep('terms-conditions');
+      toast.success('Phone number verified successfully!');
+
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      // Don't show additional toast as we already handled it above
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleFinalSubmission = async () => {
+    setIsLoading(true);
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/complete-registration', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          termsAccepted: formData.termsAccepted,
+          privacyAccepted: formData.privacyAccepted,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete registration');
+      }
+
+      // Update auth store with user data
+      login({
+        id: data.user.id,
+        email: data.user.email || '',
+        name: `${data.user.firstName} ${data.user.lastName}`,
+        role: 'customer',
+        isVerified: data.user.isPhoneVerified,
+        profile: {
+          phone: data.user.phone,
+          idNumber: formData.saId,
+          dateOfBirth: saIdInfo?.dateOfBirth.toISOString(),
+        },
+      });
+
+      setCurrentStep('complete');
+      toast.success('Registration completed successfully!');
+
+      // Redirect to marketplace after a short delay
+      setTimeout(() => {
+        router.push('/marketplace');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Final submission error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to complete registration');
+    } finally {
+      setIsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const resendOTP = async () => {
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phone: normalizePhoneNumber(unformatPhoneNumber(formData.phone)),
+          channel: deliveryMethod,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend OTP');
+      }
+
+      setOtp('');
+      setOtpAttempts(0);
+      setResendCountdown(60); // 60 second cooldown
+      toast.success(`Verification code sent via ${deliveryMethod.toUpperCase()}!`);
+
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to resend verification code');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    switch (currentStep) {
+      case 'personal-info':
+        setCurrentStep('identity');
+        break;
+      case 'mobile-verification':
+        setCurrentStep('personal-info');
+        break;
+      case 'terms-conditions':
+        setCurrentStep('mobile-verification');
+        break;
+    }
+  };
+
+  const renderStepIndicator = () => {
+    const steps = [
+      {
+        key: 'identity',
+        label: 'Identity Verification',
+        stepNumber: 1,
+        completed: ['personal-info', 'mobile-verification', 'terms-conditions', 'complete'].includes(currentStep)
+      },
+      {
+        key: 'personal-info',
+        label: 'Personal Information',
+        stepNumber: 2,
+        completed: ['mobile-verification', 'terms-conditions', 'complete'].includes(currentStep)
+      },
+      {
+        key: 'mobile-verification',
+        label: 'Mobile Verification',
+        stepNumber: 3,
+        completed: ['terms-conditions', 'complete'].includes(currentStep)
+      },
+      {
+        key: 'terms-conditions',
+        label: 'Terms & Conditions',
+        stepNumber: 4,
+        completed: currentStep === 'complete'
+      },
+    ];
+
+    const currentStepInfo = steps.find(step => step.key === currentStep);
+    const totalSteps = steps.length;
+
+    return (
+      <div className={responsiveClasses.stepIndicator}>
+        <div className={`${responsiveClasses.stepText} font-bold text-white mb-2`}>
+          Step {currentStepInfo?.stepNumber || 1} of {totalSteps}:
+          <span className="text-bigg-neon-green block sm:inline sm:ml-2 mt-1 sm:mt-0">
+            {currentStepInfo?.label || 'Identity Verification'}
+          </span>
+        </div>
+
+        {/* Progress indicator with responsive spacing */}
+        <div className={responsiveClasses.stepDots}>
+          {steps.map((step, index) => {
+            const isActive = step.key === currentStep;
+            const isCompleted = step.completed;
+
+            return (
+              <div
+                key={step.key}
+                className={`${responsiveClasses.stepDot} ${
+                  isCompleted
+                    ? 'bg-bigg-neon-green shadow-bigg-glow-green animate-pulse'
+                    : isActive
+                    ? 'bg-bigg-neon-green'
+                    : 'bg-white/20'
+                }`}
+              />
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderIdentityStep = () => (
+    <div className={responsiveClasses.spacing}>
+      <div className={`text-center ${responsiveClasses.spacing}`}>
+        <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
+          <Shield className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto animate-bigg-pulse`} />
+          <div className="absolute inset-0 bg-bigg-neon-green/20 rounded-full blur-xl animate-pulse" />
+        </div>
+        <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
+          Identity Verification
+        </h2>
+        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+          Please enter your South African ID number to verify your age
+        </p>
+      </div>
+
+      <div className={responsiveClasses.spacing}>
+        <div className="space-y-3">
+          <Label htmlFor="saId" className="text-bigg-neon-green font-bold text-base">
+            South African ID Number
+          </Label>
+          <Input
+            id="saId"
+            type="text"
+            placeholder="0000000000000"
+            value={formData.saId}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\D/g, '').slice(0, 13);
+              setFormData({ ...formData, saId: value });
+              if (errors.saId) setErrors({ ...errors, saId: '' });
+            }}
+            className={`${responsiveClasses.inputSize} ${errors.saId ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+            maxLength={13}
+          />
+          {errors.saId && (
+            <p className={`text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              {errors.saId}
+            </p>
+          )}
+          {formData.saId.length === 13 && !errors.saId && saIdInfo && (
+            <div className={`text-sm text-bigg-neon-green mt-2 bg-bigg-neon-green/10 border border-bigg-neon-green/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+              <p className="flex items-center font-semibold">
+                <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+                Valid SA ID - Age: {saIdInfo.age}, Gender: {saIdInfo.gender}
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className={`bg-bigg-dark/30 border border-white/10 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+            <Checkbox
+              id="ageVerification"
+              checked={formData.ageVerification}
+              onCheckedChange={(checked) => {
+                setFormData({ ...formData, ageVerification: !!checked });
+                if (errors.ageVerification) setErrors({ ...errors, ageVerification: '' });
+              }}
+              className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
+            />
+            <div className="flex-1">
+              <Label htmlFor="ageVerification" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-semibold text-white cursor-pointer leading-relaxed`}>
+                I confirm that I am 18 years or older and legally allowed to purchase cannabis products in South Africa
+              </Label>
+            </div>
+          </div>
+        </div>
+        {errors.ageVerification && (
+          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+            {errors.ageVerification}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderPersonalInfoStep = () => (
+    <div className={responsiveClasses.spacing}>
+      <div className={`text-center ${responsiveClasses.spacing}`}>
+        <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
+          <User className={`${responsiveClasses.iconSize} text-bigg-bee-orange mx-auto animate-bigg-pulse`} />
+          <div className="absolute inset-0 bg-bigg-bee-orange/20 rounded-full blur-xl animate-pulse" />
+        </div>
+        <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
+          Personal Information
+        </h2>
+        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+          Complete your profile information
+        </p>
+      </div>
+
+      <div className={`grid ${responsiveClasses.gridCols} ${deviceInfo.isMobile ? 'gap-4' : 'gap-6'}`}>
+        <div className="space-y-3">
+          <Label htmlFor="firstName" className="text-bigg-neon-green font-bold text-base">
+            First Name
+          </Label>
+          <Input
+            id="firstName"
+            type="text"
+            placeholder="Enter your first name"
+            value={formData.firstName}
+            onChange={(e) => {
+              setFormData({ ...formData, firstName: e.target.value });
+              if (errors.firstName) setErrors({ ...errors, firstName: '' });
+            }}
+            className={`${responsiveClasses.inputSize} ${errors.firstName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+          />
+          {errors.firstName && (
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+              {errors.firstName}
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-3">
+          <Label htmlFor="lastName" className="text-bigg-neon-green font-bold text-base">
+            Last Name
+          </Label>
+          <Input
+            id="lastName"
+            type="text"
+            placeholder="Enter your last name"
+            value={formData.lastName}
+            onChange={(e) => {
+              setFormData({ ...formData, lastName: e.target.value });
+              if (errors.lastName) setErrors({ ...errors, lastName: '' });
+            }}
+            className={`${responsiveClasses.inputSize} ${errors.lastName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+          />
+          {errors.lastName && (
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+              {errors.lastName}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label htmlFor="phone" className="text-bigg-neon-green font-bold text-base">
+          Mobile Phone Number
+        </Label>
+        <MobileInput
+          id="phone"
+          value={formData.phone}
+          onChange={(cleanValue, formattedValue) => {
+            setFormData({ ...formData, phone: formattedValue });
+            if (errors.phone) setErrors({ ...errors, phone: '' });
+          }}
+          className={`${responsiveClasses.inputSize} ${errors.phone ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+        />
+        {errors.phone && (
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            {errors.phone}
+          </p>
+        )}
+        <p className="text-sm text-gray-400 mt-2 font-medium">
+          e.g., 082 329 2438
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <Label htmlFor="email" className="text-bigg-chrome font-bold text-base">
+          Email Address <span className="text-gray-400 font-normal">(Optional)</span>
+        </Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="your@email.com"
+          value={formData.email}
+          onChange={(e) => {
+            setFormData({ ...formData, email: e.target.value });
+            if (errors.email) setErrors({ ...errors, email: '' });
+          }}
+          className={`${responsiveClasses.inputSize} ${errors.email ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+        />
+        {errors.email && (
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+            <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+            {errors.email}
+          </p>
+        )}
+      </div>
+
+      {/* Marketing Consent - POPIA Compliant */}
+      <div className={`bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 ${deviceInfo.isMobile ? 'p-4' : 'p-6'} rounded-xl border border-bigg-bee-orange/20`}>
+        <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+          <Checkbox
+            id="marketingConsent"
+            checked={formData.marketingConsent}
+            onCheckedChange={(checked) => {
+              setFormData({ ...formData, marketingConsent: !!checked });
+            }}
+            className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
+          />
+          <div className="flex-1">
+            <Label htmlFor="marketingConsent" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer`}>
+              Marketing Communications <span className="text-bigg-bee-orange">(Optional)</span>
+            </Label>
+            <div className={`mt-3 ${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 leading-relaxed space-y-2`}>
+              <p>
+                I consent to Bigg Buzz (Pty) Ltd and its authorized partners sending me marketing communications,
+                promotional offers, product updates, and newsletters via email, SMS, and other electronic means.
+              </p>
+              <p>
+                I understand that I can withdraw this consent at any time by contacting{' '}
+                <a href="mailto:support@biggbuzz.co.za" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-semibold">
+                  support@biggbuzz.co.za
+                </a>{' '}
+                or using the unsubscribe link in communications.
+              </p>
+              <p className="text-xs text-gray-400">
+                This consent is given in accordance with the Protection of Personal Information Act (POPIA) and our{' '}
+                <Link href="/privacy" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-semibold">
+                  Privacy Policy
+                </Link>.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderMobileVerificationStep = () => (
+    <div className={responsiveClasses.spacing}>
+      <div className={`text-center ${responsiveClasses.spacing}`}>
+        <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
+          <Phone className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto bigg-pulse-green`} />
+          <div className="absolute inset-0 bg-bigg-neon-green/20 rounded-full blur-xl animate-pulse" />
+        </div>
+        <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
+          Mobile Verification
+        </h2>
+        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base px-2' : 'text-lg'} font-medium`}>
+          We've sent a verification code to {formData.phone}
+        </p>
+      </div>
+
+      <div className={responsiveClasses.spacing}>
+        {/* Delivery Method Selection */}
+        <div className="space-y-3">
+          <Label className="text-bigg-neon-green font-bold text-base">Choose delivery method</Label>
+          <Select value={deliveryMethod} onValueChange={(value: 'sms' | 'whatsapp') => setDeliveryMethod(value)}>
+            <SelectTrigger className={`w-full ${responsiveClasses.inputSize} bg-bigg-dark border-bigg-neon-green/20 text-white hover:border-bigg-neon-green/40`}>
+              <SelectValue placeholder="Select delivery method" />
+            </SelectTrigger>
+            <SelectContent className="bg-bigg-dark border-bigg-neon-green/20">
+              <SelectItem value="sms" className="text-white hover:bg-bigg-dark-lighter">
+                <div className="flex items-center space-x-2">
+                  <Phone className="w-4 h-4 text-bigg-neon-green" />
+                  <span>SMS</span>
+                </div>
+              </SelectItem>
+              <SelectItem value="whatsapp" className="text-white hover:bg-bigg-dark-lighter">
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="w-4 h-4 text-bigg-neon-green" />
+                  <span>WhatsApp</span>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-3">
+          <Label className="text-bigg-neon-green font-bold text-base">Verification Code</Label>
+          <div className="flex justify-center">
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={(value) => {
+                setOtp(value);
+                if (errors.otp) setErrors({ ...errors, otp: '' });
+              }}
+              className={deviceInfo.isMobile ? 'gap-1' : 'gap-2'}
+            >
+              <InputOTPGroup className={deviceInfo.isMobile ? 'gap-1' : 'gap-2'}>
+                <InputOTPSlot index={0} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={1} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={2} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={3} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={4} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={5} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+              </InputOTPGroup>
+            </InputOTP>
+          </div>
+          {errors.otp && (
+            <p className={`text-red-400 text-sm mt-2 text-center flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              {errors.otp}
+            </p>
+          )}
+          <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 text-center font-medium px-2`}>
+            Enter the 6-digit code sent to your {deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'phone'}
+          </p>
+        </div>
+
+        <div className="text-center space-y-3">
+          <Button
+            variant="ghost"
+            onClick={resendOTP}
+            disabled={isLoading || resendCountdown > 0}
+            className={`${responsiveClasses.buttonSize} text-bigg-neon-green hover:text-bigg-neon-green-bright hover:bg-bigg-dark/50 transition-all duration-300`}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sending...
+              </>
+            ) : resendCountdown > 0 ? (
+              <>
+                <Timer className="w-4 h-4 mr-2" />
+                Resend in {resendCountdown}s
+              </>
+            ) : (
+              `Resend via ${deliveryMethod.toUpperCase()}`
+            )}
+          </Button>
+
+          {otpAttempts > 0 && (
+            <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-bigg-bee-orange font-medium bg-bigg-bee-orange/10 border border-bigg-bee-orange/20 rounded-lg p-2`}>
+              {otpAttempts}/3 attempts used
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderTermsConditionsStep = () => (
+    <div className={responsiveClasses.spacing}>
+      <div className={`text-center ${responsiveClasses.spacing}`}>
+        <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
+          <FileText className={`${responsiveClasses.iconSize} text-bigg-bee-orange mx-auto bigg-pulse-green`} />
+          <div className="absolute inset-0 bg-bigg-bee-orange/20 rounded-full blur-xl animate-pulse" />
+        </div>
+        <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
+          Terms & Conditions
+        </h2>
+        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base px-2' : 'text-lg'} font-medium`}>
+          Please review and accept our terms to complete registration
+        </p>
+      </div>
+
+      <div className={responsiveClasses.spacing}>
+        {/* Terms of Service */}
+        <div className={`bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+            <Checkbox
+              id="termsAccepted"
+              checked={formData.termsAccepted}
+              onCheckedChange={(checked) => {
+                setFormData({ ...formData, termsAccepted: !!checked });
+                if (errors.termsAccepted) setErrors({ ...errors, termsAccepted: '' });
+              }}
+              className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
+            />
+            <div className="flex-1">
+              <Label htmlFor="termsAccepted" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer leading-relaxed`}>
+                I agree to the{' '}
+                <Link href="/terms" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-bold underline-offset-4 hover:underline">
+                  Terms of Service
+                </Link>
+              </Label>
+              <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 mt-2 leading-relaxed`}>
+                By checking this box, you confirm that you have read and agree to our Terms of Service
+              </p>
+            </div>
+          </div>
+        </div>
+        {errors.termsAccepted && (
+          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+            {errors.termsAccepted}
+          </p>
+        )}
+
+        {/* Privacy Policy */}
+        <div className={`bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+            <Checkbox
+              id="privacyAccepted"
+              checked={formData.privacyAccepted}
+              onCheckedChange={(checked) => {
+                setFormData({ ...formData, privacyAccepted: !!checked });
+                if (errors.privacyAccepted) setErrors({ ...errors, privacyAccepted: '' });
+              }}
+              className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
+            />
+            <div className="flex-1">
+              <Label htmlFor="privacyAccepted" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer leading-relaxed`}>
+                I agree to the{' '}
+                <Link href="/privacy" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-bold underline-offset-4 hover:underline">
+                  Privacy Policy
+                </Link>
+              </Label>
+              <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 mt-2 leading-relaxed`}>
+                By checking this box, you acknowledge that you have read and understand our Privacy Policy
+              </p>
+            </div>
+          </div>
+        </div>
+        {errors.privacyAccepted && (
+          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+            {errors.privacyAccepted}
+          </p>
+        )}
+
+        {/* Legal Notice */}
+        <div className={`bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 border border-bigg-bee-orange/30 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
+          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+            <AlertCircle className={`${deviceInfo.isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-bigg-bee-orange mt-1 flex-shrink-0`} />
+            <div className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-white`}>
+              <p className={`font-bold mb-3 ${deviceInfo.isMobile ? 'text-sm' : 'text-base'} text-bigg-bee-orange`}>Legal Notice</p>
+              <p className="leading-relaxed font-medium">
+                Cannabis products are for adults 18+ only. Use responsibly and in accordance with South African law.
+                Bigg Buzz is committed to promoting responsible cannabis use and maintaining compliance with all
+                applicable regulations.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCompleteStep = () => (
+    <div className={`${responsiveClasses.spacing} text-center`}>
+      <div className={`relative mx-auto ${deviceInfo.isMobile ? 'w-20 h-20' : 'w-24 h-24'}`}>
+        <div className={`${deviceInfo.isMobile ? 'w-20 h-20' : 'w-24 h-24'} bg-gradient-to-r from-bigg-neon-green to-bigg-neon-green-bright rounded-full flex items-center justify-center shadow-bigg-glow-green-intense`}>
+          <CheckCircle className={`${deviceInfo.isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-white animate-pulse`} />
+        </div>
+        <div className="absolute inset-0 bg-bigg-neon-green/30 rounded-full blur-xl animate-pulse" />
+      </div>
+      <div className={responsiveClasses.spacing}>
+        <h2 className={`${responsiveClasses.titleSize} font-bold bg-gradient-to-r from-bigg-neon-green via-white to-bigg-chrome bg-clip-text text-transparent`}>
+          Registration Complete!
+        </h2>
+        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+          Welcome to Bigg Buzz! Your account has been created and verified.
+        </p>
+        <div className="flex items-center justify-center space-x-2 text-bigg-neon-green">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <p className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold`}>
+            Redirecting to marketplace...
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-bigg-darker via-bigg-dark to-bigg-darker relative overflow-hidden">
+      {/* Animated background effects - responsive */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 bg-bigg-neon-green/10 rounded-full blur-3xl animate-bigg-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 bg-bigg-bee-orange/10 rounded-full blur-3xl animate-bigg-float" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <div className={`${getOptimalFormLayout(deviceInfo)} relative z-10`}>
+        <div className={responsiveClasses.container}>
+          <Card className="border-bigg-neon-green/20 shadow-2xl shadow-bigg-neon-green/10 backdrop-blur-xl">
+            <CardHeader className={`text-center ${responsiveClasses.headerPadding}`}>
+              <div className="mx-auto mb-4 relative">
+                <h1 className={`${responsiveClasses.titleSize} font-black bg-gradient-to-r from-bigg-neon-green via-white to-bigg-chrome bg-clip-text text-transparent animate-bigg-chrome-shine`}>
+                  BIGG BUZZ
+                </h1>
+                <div className="absolute inset-0 bg-bigg-neon-green/20 blur-xl rounded-full" />
+              </div>
+              <CardTitle className={`${responsiveClasses.headingSize} font-bold text-white mb-2`}>
+                Join the Hive
+              </CardTitle>
+              <CardDescription className={`text-gray-300 ${responsiveClasses.bodySize}`}>
+                South Africa's premier cannabis marketplace
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className={`${responsiveClasses.contentPadding} ${responsiveClasses.spacing}`}>
+              {currentStep !== 'complete' && renderStepIndicator()}
+
+              {currentStep === 'identity' && renderIdentityStep()}
+              {currentStep === 'personal-info' && renderPersonalInfoStep()}
+              {currentStep === 'mobile-verification' && renderMobileVerificationStep()}
+              {currentStep === 'terms-conditions' && renderTermsConditionsStep()}
+              {currentStep === 'complete' && renderCompleteStep()}
+
+              {currentStep !== 'complete' && (
+                <div className={`flex flex-col sm:flex-row ${responsiveClasses.gap} pt-6`}>
+                  {currentStep !== 'identity' && (
+                    <Button
+                      variant="outline"
+                      onClick={handleBack}
+                      disabled={isLoading}
+                      className={`${currentStep === 'identity' ? 'hidden' : 'w-full sm:flex-1'} ${responsiveClasses.buttonSize}`}
+                    >
+                      Back
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleNext}
+                    disabled={isLoading}
+                    className={`${currentStep === 'identity' ? 'w-full' : 'w-full sm:flex-1'} shadow-bigg-glow-green-intense ${responsiveClasses.buttonSize}`}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                        <span className="font-bold">
+                          {currentStep === 'personal-info' ? 'Creating Account...' : currentStep === 'mobile-verification' ? 'Verifying...' : currentStep === 'terms-conditions' ? 'Completing...' : 'Processing...'}
+                        </span>
+                      </>
+                    ) : currentStep === 'personal-info' ? (
+                      'Create Account'
+                    ) : currentStep === 'mobile-verification' ? (
+                      'Verify Code'
+                    ) : currentStep === 'terms-conditions' ? (
+                      'Complete Registration'
+                    ) : (
+                      'Continue'
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              <div className={`text-center text-sm sm:text-base text-gray-300 pt-6 border-t border-white/10 mt-6 sm:mt-8`}>
+                Already have an account?{' '}
+                <Link href="/login" className="text-bigg-neon-green hover:text-bigg-neon-green-bright font-bold transition-colors duration-300 hover:underline">
+                  Sign in
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}

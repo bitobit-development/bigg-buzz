@@ -1,0 +1,555 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User Management
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  phone         String?   @unique
+  phoneVerified DateTime?
+  saId          String?   @unique // South African ID number (encrypted)
+  saIdVerified  DateTime?
+  firstName     String?
+  lastName      String?
+  dateOfBirth   DateTime?
+  address       Json? // Flexible address structure
+  profileImage  String?
+  isActive      Boolean   @default(true)
+  role          UserRole  @default(CUSTOMER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // Soft delete for compliance
+  lastLoginAt   DateTime?
+
+  // Subscription management
+  subscriptions UserSubscription[]
+
+  // Authentication tokens
+  tokens UserToken[]
+
+  // Orders and transactions
+  orders         Order[]
+  paymentMethods PaymentMethod[]
+
+  // Vendor relationship
+  vendor Vendor?
+
+  // Reviews
+  productReviews ProductReview[]
+
+  // Compliance and audit
+  complianceEvents ComplianceEvent[]
+
+  // Next-Auth requirements
+  accounts Account[]
+  sessions Session[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([saId])
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("users")
+}
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Subscription Plans
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  currency    String   @default("ZAR")
+  duration    Int // Duration in days
+  features    Json // Flexible features structure
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // User subscriptions
+  userSubscriptions UserSubscription[]
+
+  @@index([isActive])
+  @@map("subscription_plans")
+}
+
+// User Subscriptions
+model UserSubscription {
+  id        String             @id @default(cuid())
+  userId    String
+  planId    String
+  status    SubscriptionStatus @default(ACTIVE)
+  startDate DateTime           @default(now())
+  endDate   DateTime
+  autoRenew Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id])
+
+  // Payment tracking
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([endDate])
+  @@map("user_subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+// Authentication Tokens
+model UserToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([type])
+  @@index([expiresAt])
+  @@map("user_tokens")
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+  OTP_LOGIN
+  ACCESS_TOKEN
+  REFRESH_TOKEN
+}
+
+// Vendor Management
+model Vendor {
+  id                   String       @id @default(cuid())
+  userId               String       @unique
+  businessName         String
+  businessRegistration String? // Company registration number
+  businessType         BusinessType
+  description          String?
+  website              String?
+  socialMedia          Json? // Social media links
+
+  // Location and contact
+  address      Json // Business address
+  contactEmail String?
+  contactPhone String?
+
+  // Verification and compliance
+  status                VendorStatus @default(PENDING)
+  verificationDocuments Json? // Document URLs and metadata
+  verifiedAt            DateTime?
+
+  // Business metrics
+  rating       Decimal? @db.Decimal(3, 2)
+  totalOrders  Int      @default(0)
+  totalRevenue Decimal  @default(0) @db.Decimal(15, 2)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[]
+  orders   Order[]
+
+  @@index([status])
+  @@index([businessType])
+  @@index([rating])
+  @@map("vendors")
+}
+
+enum BusinessType {
+  DISPENSARY
+  CULTIVATOR
+  MANUFACTURER
+  DISTRIBUTOR
+  DELIVERY_SERVICE
+}
+
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+  INACTIVE
+}
+
+// Product Management
+model Product {
+  id          String          @id @default(cuid())
+  vendorId    String
+  name        String
+  description String?
+  category    ProductCategory
+  subCategory String?
+
+  // Cannabis-specific attributes
+  strain     String?
+  thcContent Decimal? @db.Decimal(5, 2) // THC percentage
+  cbdContent Decimal? @db.Decimal(5, 2) // CBD percentage
+  indica     Int? // Indica percentage (0-100)
+  sativa     Int? // Sativa percentage (0-100)
+  hybrid     Int? // Hybrid percentage (0-100)
+
+  // Pricing and inventory
+  price         Decimal @db.Decimal(10, 2)
+  currency      String  @default("ZAR")
+  stockQuantity Int     @default(0)
+  unit          String  @default("gram") // gram, ounce, piece, etc.
+  minimumOrder  Int     @default(1)
+
+  // Media and documentation
+  images    Json // Array of image URLs
+  videos    Json? // Array of video URLs
+  documents Json? // Compliance documents
+
+  // Product status and compliance
+  isActive   Boolean @default(true)
+  isVerified Boolean @default(false)
+  compliance Json? // Compliance metadata
+
+  // SEO and discovery
+  tags Json // Array of tags for search
+  sku  String? @unique
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // Soft delete
+
+  vendor     Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+  reviews    ProductReview[]
+
+  @@index([vendorId])
+  @@index([category])
+  @@index([isActive])
+  @@index([isVerified])
+  @@index([name])
+  @@index([price])
+  @@index([createdAt])
+  @@map("products")
+}
+
+enum ProductCategory {
+  FLOWER
+  EDIBLES
+  CONCENTRATES
+  TOPICALS
+  ACCESSORIES
+  SEEDS
+  CLONES
+  OTHER
+}
+
+// Product Reviews
+model ProductReview {
+  id         String   @id @default(cuid())
+  productId  String
+  userId     String
+  rating     Int // 1-5 star rating
+  comment    String?
+  isVerified Boolean  @default(false) // Verified purchase
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId])
+  @@index([productId])
+  @@index([rating])
+  @@map("product_reviews")
+}
+
+// Order Management
+model Order {
+  id          String @id @default(cuid())
+  userId      String
+  vendorId    String
+  orderNumber String @unique
+
+  // Order details
+  status   OrderStatus @default(PENDING)
+  subtotal Decimal     @db.Decimal(12, 2)
+  tax      Decimal     @db.Decimal(12, 2)
+  shipping Decimal     @db.Decimal(12, 2)
+  discount Decimal     @default(0) @db.Decimal(12, 2)
+  total    Decimal     @db.Decimal(12, 2)
+  currency String      @default("ZAR")
+
+  // Delivery information
+  deliveryAddress Json
+  deliveryDate    DateTime?
+  deliverySlot    String?
+
+  // Payment and compliance
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentMethod String?
+
+  // Compliance tracking
+  complianceData Json? // Compliance metadata
+
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  user             User              @relation(fields: [userId], references: [id])
+  vendor           Vendor            @relation(fields: [vendorId], references: [id])
+  items            OrderItem[]
+  payments         Payment[]
+  complianceEvents ComplianceEvent[]
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  READY_FOR_PICKUP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+// Order Items
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// Payment Management
+model Payment {
+  id             String  @id @default(cuid())
+  orderId        String?
+  subscriptionId String?
+
+  // Payment details
+  amount        Decimal       @db.Decimal(12, 2)
+  currency      String        @default("ZAR")
+  paymentMethod PaymentType
+  status        PaymentStatus @default(PENDING)
+
+  // Gateway information
+  gatewayProvider  PaymentGateway
+  gatewayReference String? // External payment reference
+  gatewayResponse  Json? // Gateway response data
+
+  // Metadata
+  description String?
+  metadata    Json?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  order        Order?            @relation(fields: [orderId], references: [id])
+  subscription UserSubscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([orderId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([gatewayProvider])
+  @@index([createdAt])
+  @@map("payments")
+}
+
+enum PaymentType {
+  CARD
+  EFT
+  INSTANT_EFT
+  MOBILE_PAYMENT
+  CRYPTO
+  CASH_ON_DELIVERY
+}
+
+enum PaymentGateway {
+  PEACH_PAYMENTS
+  PAYFAST
+  OZOW
+  STRIPE
+  PAYPAL
+}
+
+// User Payment Methods
+model PaymentMethod {
+  id          String            @id @default(cuid())
+  userId      String
+  type        PaymentMethodType
+  provider    String // Card issuer, bank, etc.
+  lastFour    String? // Last 4 digits of card/account
+  expiryMonth Int?
+  expiryYear  Int?
+  isDefault   Boolean           @default(false)
+  isActive    Boolean           @default(true)
+
+  // Encrypted sensitive data
+  tokenizedData Json? // Tokenized payment data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@map("payment_methods")
+}
+
+enum PaymentMethodType {
+  CREDIT_CARD
+  DEBIT_CARD
+  BANK_ACCOUNT
+  MOBILE_WALLET
+}
+
+// Compliance and Audit Trail
+model ComplianceEvent {
+  id          String              @id @default(cuid())
+  userId      String?
+  orderId     String?
+  eventType   ComplianceEventType
+  description String
+  metadata    Json? // Event-specific data
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id])
+  order Order? @relation(fields: [orderId], references: [id])
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("compliance_events")
+}
+
+enum ComplianceEventType {
+  USER_REGISTRATION
+  ID_VERIFICATION
+  AGE_VERIFICATION
+  ORDER_PLACED
+  PAYMENT_PROCESSED
+  PRODUCT_DELIVERED
+  ACCOUNT_SUSPENDED
+  DATA_ACCESS
+  DATA_MODIFICATION
+  LOGIN_ATTEMPT
+  SECURITY_ALERT
+}
+
+// Next-Auth Required Models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Configuration and Settings
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@map("system_config")
+}

@@ -1,26 +1,290 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@plugin "tailwindcss-animate";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-bigg-neon-green: var(--bigg-neon-green);
+  --color-bigg-bee-orange: var(--bigg-bee-orange);
+  --color-bigg-chrome: var(--bigg-chrome);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* Bigg Buzz Brand Colors */
+  --bigg-neon-green: #00ff88;
+  --bigg-neon-green-bright: #4ade80;
+  --bigg-bee-orange: #ff8c00;
+  --bigg-bee-orange-bright: #ffa500;
+  --bigg-chrome: #c0c0c0;
+  --bigg-chrome-light: #e5e5e5;
+
+  /* Dark Forest Green Theme Colors */
+  --bigg-darker: #0a1a0a;
+  --bigg-dark: #1a2e1a;
+  --bigg-dark-lighter: #2a3e2a;
+
+  --radius: 0.75rem;
+
+  /* Dark Green Theme as default for Bigg Buzz */
+  --background: var(--bigg-darker);
+  --foreground: #ffffff;
+  --card: var(--bigg-dark);
+  --card-foreground: #ffffff;
+  --popover: var(--bigg-dark-lighter);
+  --popover-foreground: #ffffff;
+  --primary: var(--bigg-neon-green);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bigg-dark-lighter);
+  --secondary-foreground: #ffffff;
+  --muted: var(--bigg-dark-lighter);
+  --muted-foreground: #888888;
+  --accent: var(--bigg-bee-orange);
+  --accent-foreground: #ffffff;
+  --destructive: #ff4444;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 255, 136, 0.2);
+  --input: var(--bigg-dark);
+  --ring: var(--bigg-neon-green);
+
+  /* Charts with neon theme */
+  --chart-1: var(--bigg-neon-green);
+  --chart-2: var(--bigg-bee-orange);
+  --chart-3: var(--bigg-chrome);
+  --chart-4: #ff6b6b;
+  --chart-5: #4ecdc4;
+
+  /* Sidebar */
+  --sidebar: var(--bigg-dark);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--bigg-neon-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--bigg-dark-lighter);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(0, 255, 136, 0.2);
+  --sidebar-ring: var(--bigg-neon-green);
+}
+
+.light {
+  /* Light theme override for those who prefer it */
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #16a34a;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #000000;
+  --muted: #f5f5f5;
+  --muted-foreground: #666666;
+  --accent: var(--bigg-bee-orange);
+  --accent-foreground: #ffffff;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #16a34a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Bigg Buzz Glow Effects */
+  .bigg-glow-green {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), 0 0 40px rgba(0, 255, 136, 0.3), 0 0 60px rgba(0, 255, 136, 0.1);
+  }
+
+  .bigg-glow-green-intense {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.6), 0 0 90px rgba(0, 255, 136, 0.4);
+  }
+
+  .bigg-glow-orange {
+    box-shadow: 0 0 20px rgba(255, 140, 0, 0.5), 0 0 40px rgba(255, 140, 0, 0.3), 0 0 60px rgba(255, 140, 0, 0.1);
+  }
+
+  .bigg-text-chrome {
+    background: linear-gradient(45deg, #c0c0c0, #ffffff, #c0c0c0, #888888);
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: chrome-shine 3s ease-in-out infinite;
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(192, 192, 192, 0.5);
+  }
+
+  .bigg-chrome-border {
+    border-image: linear-gradient(45deg, #c0c0c0, #ffffff, #c0c0c0) 1;
+  }
+
+  .bigg-hover-glow {
+    transition: all 0.3s ease-in-out;
+  }
+
+  .bigg-hover-glow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 25px rgba(0, 255, 136, 0.6), 0 0 50px rgba(0, 255, 136, 0.4), 0 0 75px rgba(0, 255, 136, 0.2);
+  }
+
+  .bigg-pulse-green {
+    animation: pulse-green 2s ease-in-out infinite;
+  }
+
+  .bigg-smoke-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bigg-smoke-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+    animation: smoke-drift 3s ease-in-out infinite;
+  }
+
+  /* Dark Green Theme Utilities */
+  .bigg-bg-darker {
+    background-color: var(--bigg-darker);
+  }
+
+  .bigg-bg-dark {
+    background-color: var(--bigg-dark);
+  }
+
+  .bigg-bg-dark-lighter {
+    background-color: var(--bigg-dark-lighter);
+  }
+
+  .bigg-border-green {
+    border-color: rgba(0, 255, 136, 0.3);
+  }
+
+  .bigg-text-white {
+    color: #ffffff;
+  }
+
+  .bigg-gradient-dark-green {
+    background: linear-gradient(135deg, var(--bigg-darker) 0%, var(--bigg-dark) 50%, var(--bigg-dark-lighter) 100%);
+  }
+
+  .bigg-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .bigg-chrome-shine {
+    animation: chrome-shine 3s ease-in-out infinite;
+  }
+}
+
+@keyframes chrome-shine {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pulse-green {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.8), 0 0 60px rgba(0, 255, 136, 0.4);
+  }
+}
+
+@keyframes smoke-drift {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--bigg-neon-green), var(--bigg-bee-orange));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--bigg-neon-green-bright), var(--bigg-bee-orange-bright));
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
 }
