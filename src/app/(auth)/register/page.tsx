@@ -674,7 +674,7 @@ export default function RegisterPage() {
   );
 
   const renderMobileVerificationStep = () => (
-    <div className={responsiveClasses.spacing}>
+    <div className={responsiveClasses.formContainer}>
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <Phone className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto bigg-pulse-green`} />
@@ -683,15 +683,15 @@ export default function RegisterPage() {
         <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
           Mobile Verification
         </h2>
-        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base px-2' : 'text-lg'} font-medium`}>
+        <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium px-2 sm:px-0`}>
           We've sent a verification code to {formData.phone}
         </p>
       </div>
 
       <div className={responsiveClasses.spacing}>
         {/* Delivery Method Selection */}
-        <div className="space-y-3">
-          <Label className="text-bigg-neon-green font-bold text-base">Choose delivery method</Label>
+        <div className="space-y-3 sm:space-y-4">
+          <Label className="text-bigg-neon-green font-bold text-base sm:text-lg">Choose delivery method</Label>
           <Select value={deliveryMethod} onValueChange={(value: 'sms' | 'whatsapp') => setDeliveryMethod(value)}>
             <SelectTrigger className={`w-full ${responsiveClasses.inputSize} bg-bigg-dark border-bigg-neon-green/20 text-white hover:border-bigg-neon-green/40`}>
               <SelectValue placeholder="Select delivery method" />
@@ -713,8 +713,8 @@ export default function RegisterPage() {
           </Select>
         </div>
 
-        <div className="space-y-3">
-          <Label className="text-bigg-neon-green font-bold text-base">Verification Code</Label>
+        <div className="space-y-3 sm:space-y-4">
+          <Label className="text-bigg-neon-green font-bold text-base sm:text-lg">Verification Code</Label>
           <div className="flex justify-center">
             <InputOTP
               maxLength={6}
@@ -723,30 +723,30 @@ export default function RegisterPage() {
                 setOtp(value);
                 if (errors.otp) setErrors({ ...errors, otp: '' });
               }}
-              className={deviceInfo.isMobile ? 'gap-1' : 'gap-2'}
+              className="gap-1 sm:gap-2"
             >
-              <InputOTPGroup className={deviceInfo.isMobile ? 'gap-1' : 'gap-2'}>
-                <InputOTPSlot index={0} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
-                <InputOTPSlot index={1} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
-                <InputOTPSlot index={2} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
-                <InputOTPSlot index={3} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
-                <InputOTPSlot index={4} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
-                <InputOTPSlot index={5} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+              <InputOTPGroup className="gap-1 sm:gap-2">
+                <InputOTPSlot index={0} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={1} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={2} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={3} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={4} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
+                <InputOTPSlot index={5} className={`${responsiveClasses.otpSlotSize} border-2 border-bigg-neon-green/20 bg-bigg-dark text-white text-base sm:text-lg font-bold focus:border-bigg-neon-green focus:shadow-bigg-glow-green`} />
               </InputOTPGroup>
             </InputOTP>
           </div>
           {errors.otp && (
-            <p className={`text-red-400 text-sm mt-2 text-center flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <p className="text-red-400 text-sm mt-2 text-center flex items-center justify-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
               <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
               {errors.otp}
             </p>
           )}
-          <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 text-center font-medium px-2`}>
+          <p className="text-xs sm:text-sm text-gray-300 text-center font-medium px-2">
             Enter the 6-digit code sent to your {deliveryMethod === 'whatsapp' ? 'WhatsApp' : 'phone'}
           </p>
         </div>
 
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3 sm:space-y-4">
           <Button
             variant="ghost"
             onClick={resendOTP}
@@ -769,7 +769,7 @@ export default function RegisterPage() {
           </Button>
 
           {otpAttempts > 0 && (
-            <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-bigg-bee-orange font-medium bg-bigg-bee-orange/10 border border-bigg-bee-orange/20 rounded-lg p-2`}>
+            <p className="text-xs sm:text-sm text-bigg-bee-orange font-medium bg-bigg-bee-orange/10 border border-bigg-bee-orange/20 rounded-lg p-3">
               {otpAttempts}/3 attempts used
             </p>
           )}
@@ -779,7 +779,7 @@ export default function RegisterPage() {
   );
 
   const renderTermsConditionsStep = () => (
-    <div className={responsiveClasses.spacing}>
+    <div className={responsiveClasses.formContainer}>
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <FileText className={`${responsiveClasses.iconSize} text-bigg-bee-orange mx-auto bigg-pulse-green`} />
@@ -788,15 +788,15 @@ export default function RegisterPage() {
         <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
           Terms & Conditions
         </h2>
-        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base px-2' : 'text-lg'} font-medium`}>
+        <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium px-2 sm:px-0`}>
           Please review and accept our terms to complete registration
         </p>
       </div>
 
       <div className={responsiveClasses.spacing}>
         {/* Terms of Service */}
-        <div className={`bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
-          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+        <div className="bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start space-x-3 sm:space-x-4">
             <Checkbox
               id="termsAccepted"
               checked={formData.termsAccepted}
@@ -807,28 +807,28 @@ export default function RegisterPage() {
               className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
             />
             <div className="flex-1">
-              <Label htmlFor="termsAccepted" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer leading-relaxed`}>
+              <Label htmlFor="termsAccepted" className="text-sm sm:text-base font-bold text-white cursor-pointer leading-relaxed">
                 I agree to the{' '}
                 <Link href="/terms" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-bold underline-offset-4 hover:underline">
                   Terms of Service
                 </Link>
               </Label>
-              <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 mt-2 leading-relaxed`}>
+              <p className="text-xs sm:text-sm text-gray-300 mt-2 leading-relaxed">
                 By checking this box, you confirm that you have read and agree to our Terms of Service
               </p>
             </div>
           </div>
         </div>
         {errors.termsAccepted && (
-          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+          <p className="text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
             {errors.termsAccepted}
           </p>
         )}
 
         {/* Privacy Policy */}
-        <div className={`bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
-          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+        <div className="bg-bigg-dark/30 border border-bigg-neon-green/20 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start space-x-3 sm:space-x-4">
             <Checkbox
               id="privacyAccepted"
               checked={formData.privacyAccepted}
@@ -839,31 +839,31 @@ export default function RegisterPage() {
               className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
             />
             <div className="flex-1">
-              <Label htmlFor="privacyAccepted" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer leading-relaxed`}>
+              <Label htmlFor="privacyAccepted" className="text-sm sm:text-base font-bold text-white cursor-pointer leading-relaxed">
                 I agree to the{' '}
                 <Link href="/privacy" className="text-bigg-neon-green hover:text-bigg-neon-green-bright transition-colors font-bold underline-offset-4 hover:underline">
                   Privacy Policy
                 </Link>
               </Label>
-              <p className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 mt-2 leading-relaxed`}>
+              <p className="text-xs sm:text-sm text-gray-300 mt-2 leading-relaxed">
                 By checking this box, you acknowledge that you have read and understand our Privacy Policy
               </p>
             </div>
           </div>
         </div>
         {errors.privacyAccepted && (
-          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+          <p className="text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
             {errors.privacyAccepted}
           </p>
         )}
 
         {/* Legal Notice */}
-        <div className={`bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 border border-bigg-bee-orange/30 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
-          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
-            <AlertCircle className={`${deviceInfo.isMobile ? 'w-5 h-5' : 'w-6 h-6'} text-bigg-bee-orange mt-1 flex-shrink-0`} />
-            <div className={`${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-white`}>
-              <p className={`font-bold mb-3 ${deviceInfo.isMobile ? 'text-sm' : 'text-base'} text-bigg-bee-orange`}>Legal Notice</p>
+        <div className="bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 border border-bigg-bee-orange/30 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start space-x-3 sm:space-x-4">
+            <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-bigg-bee-orange mt-1 flex-shrink-0" />
+            <div className="text-xs sm:text-sm text-white">
+              <p className="font-bold mb-3 text-sm sm:text-base text-bigg-bee-orange">Legal Notice</p>
               <p className="leading-relaxed font-medium">
                 Cannabis products are for adults 18+ only. Use responsibly and in accordance with South African law.
                 Bigg Buzz is committed to promoting responsible cannabis use and maintaining compliance with all
@@ -877,23 +877,23 @@ export default function RegisterPage() {
   );
 
   const renderCompleteStep = () => (
-    <div className={`${responsiveClasses.spacing} text-center`}>
-      <div className={`relative mx-auto ${deviceInfo.isMobile ? 'w-20 h-20' : 'w-24 h-24'}`}>
-        <div className={`${deviceInfo.isMobile ? 'w-20 h-20' : 'w-24 h-24'} bg-gradient-to-r from-bigg-neon-green to-bigg-neon-green-bright rounded-full flex items-center justify-center shadow-bigg-glow-green-intense`}>
-          <CheckCircle className={`${deviceInfo.isMobile ? 'w-10 h-10' : 'w-12 h-12'} text-white animate-pulse`} />
+    <div className={`${responsiveClasses.formContainer} text-center`}>
+      <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28">
+        <div className="w-full h-full bg-gradient-to-r from-bigg-neon-green to-bigg-neon-green-bright rounded-full flex items-center justify-center shadow-bigg-glow-green-intense">
+          <CheckCircle className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-white animate-pulse" />
         </div>
         <div className="absolute inset-0 bg-bigg-neon-green/30 rounded-full blur-xl animate-pulse" />
       </div>
       <div className={responsiveClasses.spacing}>
-        <h2 className={`${responsiveClasses.titleSize} font-bold bg-gradient-to-r from-bigg-neon-green via-white to-bigg-chrome bg-clip-text text-transparent`}>
+        <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-bigg-neon-green via-white to-bigg-chrome bg-clip-text text-transparent`}>
           Registration Complete!
         </h2>
-        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+        <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium`}>
           Welcome to Bigg Buzz! Your account has been created and verified.
         </p>
         <div className="flex items-center justify-center space-x-2 text-bigg-neon-green">
           <Loader2 className="w-5 h-5 animate-spin" />
-          <p className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold`}>
+          <p className="text-sm sm:text-base font-bold">
             Redirecting to marketplace...
           </p>
         </div>

@@ -130,8 +130,8 @@ export function getResponsiveClasses(deviceInfo: DeviceInfo) {
   const { touchDevice, breakpoint } = deviceInfo;
 
   return {
-    // Container: Responsive across all screen sizes
-    container: 'w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-auto px-4 sm:px-6 md:px-8',
+    // Container: Flexible across all screen sizes - can extend/shrink naturally
+    container: 'w-full max-w-none sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] mx-auto px-4 sm:px-6 md:px-8',
 
     // Card padding: Responsive padding for proper spacing
     cardPadding: 'p-4 sm:p-6 md:p-8',
@@ -240,44 +240,58 @@ export function isTabletDevice(): boolean {
 }
 
 /**
- * Get optimal form layout classes for responsive design
+ * Get optimal form layout classes for flexible responsive design
+ * Layout adapts naturally to content and viewport without fixed constraints
  */
 export function getOptimalFormLayout(deviceInfo: DeviceInfo): string {
-  const { isMobile, isTablet, orientation } = deviceInfo;
+  const { isMobile, isTablet, orientation, screenWidth } = deviceInfo;
+
+  // Base classes for flexible layout that can extend/shrink naturally
+  const baseClasses = 'min-h-screen flex flex-col';
+
+  // Dynamic padding based on viewport width using CSS clamp for smooth scaling
+  const dynamicPadding = screenWidth < 640
+    ? 'px-4'
+    : screenWidth < 1024
+    ? 'px-6'
+    : 'px-8';
 
   if (isMobile) {
     return orientation === 'portrait'
-      ? 'min-h-screen flex flex-col justify-start pt-8 px-4'
-      : 'min-h-screen flex flex-col justify-center px-4';
+      ? `${baseClasses} justify-start pt-[max(2rem,5vh)] ${dynamicPadding}`
+      : `${baseClasses} justify-center py-[max(1rem,2vh)] ${dynamicPadding}`;
   }
 
   if (isTablet) {
-    return 'min-h-screen flex flex-col justify-center px-6 md:px-8';
+    return `${baseClasses} justify-center py-[max(2rem,5vh)] ${dynamicPadding}`;
   }
 
-  return 'min-h-screen flex flex-col justify-center px-8 lg:px-12';
+  // Desktop: More flexible spacing that adapts to viewport height
+  return `${baseClasses} justify-center py-[max(3rem,8vh)] ${dynamicPadding}`;
 }
 
 /**
- * Get device-specific container classes
+ * Get device-specific container classes with flexible sizing
+ * Containers can grow/shrink naturally based on content and viewport
  */
 export function getDeviceContainerClasses(deviceInfo: DeviceInfo): string {
-  const { breakpoint } = deviceInfo;
+  const { screenWidth, screenHeight } = deviceInfo;
 
-  switch (breakpoint) {
-    case 'xs':
-      return 'w-full px-4 py-6';
-    case 'sm':
-      return 'w-full max-w-sm mx-auto px-4 py-6';
-    case 'md':
-      return 'w-full max-w-md mx-auto px-6 py-8';
-    case 'lg':
-      return 'w-full max-w-lg mx-auto px-8 py-10';
-    case 'xl':
-      return 'w-full max-w-xl mx-auto px-10 py-12';
-    case '2xl':
-      return 'w-full max-w-2xl mx-auto px-12 py-16';
-    default:
-      return 'w-full max-w-lg mx-auto px-6 py-8';
-  }
+  // Flexible width based on viewport with natural scaling
+  const flexibleWidth = screenWidth < 640
+    ? 'w-full'
+    : screenWidth < 1024
+    ? 'w-full max-w-[min(90vw,42rem)]'
+    : screenWidth < 1440
+    ? 'w-full max-w-[min(80vw,56rem)]'
+    : 'w-full max-w-[min(70vw,72rem)]';
+
+  // Flexible padding that scales with viewport
+  const flexiblePadding = screenWidth < 640
+    ? 'px-4 py-[max(1.5rem,4vh)]'
+    : screenWidth < 1024
+    ? 'px-6 py-[max(2rem,5vh)]'
+    : 'px-8 py-[max(2.5rem,6vh)]';
+
+  return `${flexibleWidth} mx-auto ${flexiblePadding}`;
 }
