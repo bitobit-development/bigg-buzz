@@ -447,7 +447,7 @@ export default function RegisterPage() {
   };
 
   const renderIdentityStep = () => (
-    <div className={responsiveClasses.spacing}>
+    <div className={responsiveClasses.formContainer}>
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <Shield className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto animate-bigg-pulse`} />
@@ -456,14 +456,14 @@ export default function RegisterPage() {
         <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
           Identity Verification
         </h2>
-        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+        <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium`}>
           Please enter your South African ID number to verify your age
         </p>
       </div>
 
       <div className={responsiveClasses.spacing}>
-        <div className="space-y-3">
-          <Label htmlFor="saId" className="text-bigg-neon-green font-bold text-base">
+        <div className="space-y-3 sm:space-y-4">
+          <Label htmlFor="saId" className="text-bigg-neon-green font-bold text-base sm:text-lg">
             South African ID Number
           </Label>
           <Input
@@ -480,13 +480,13 @@ export default function RegisterPage() {
             maxLength={13}
           />
           {errors.saId && (
-            <p className={`text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
               <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
               {errors.saId}
             </p>
           )}
           {formData.saId.length === 13 && !errors.saId && saIdInfo && (
-            <div className={`text-sm text-bigg-neon-green mt-2 bg-bigg-neon-green/10 border border-bigg-neon-green/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+            <div className="text-sm text-bigg-neon-green mt-2 bg-bigg-neon-green/10 border border-bigg-neon-green/20 rounded-lg p-3 sm:p-4">
               <p className="flex items-center font-semibold">
                 <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                 Valid SA ID - Age: {saIdInfo.age}, Gender: {saIdInfo.gender}
@@ -495,8 +495,8 @@ export default function RegisterPage() {
           )}
         </div>
 
-        <div className={`bg-bigg-dark/30 border border-white/10 rounded-xl ${deviceInfo.isMobile ? 'p-4' : 'p-6'}`}>
-          <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+        <div className="bg-bigg-dark/30 border border-white/10 rounded-xl p-4 sm:p-6">
+          <div className="flex items-start space-x-3 sm:space-x-4">
             <Checkbox
               id="ageVerification"
               checked={formData.ageVerification}
@@ -507,14 +507,14 @@ export default function RegisterPage() {
               className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
             />
             <div className="flex-1">
-              <Label htmlFor="ageVerification" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-semibold text-white cursor-pointer leading-relaxed`}>
+              <Label htmlFor="ageVerification" className="text-sm sm:text-base font-semibold text-white cursor-pointer leading-relaxed">
                 I confirm that I am 18 years or older and legally allowed to purchase cannabis products in South Africa
               </Label>
             </div>
           </div>
         </div>
         {errors.ageVerification && (
-          <p className={`text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg ${deviceInfo.isMobile ? 'p-2' : 'p-3'}`}>
+          <p className="text-red-400 text-sm flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
             <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
             {errors.ageVerification}
           </p>
@@ -524,7 +524,7 @@ export default function RegisterPage() {
   );
 
   const renderPersonalInfoStep = () => (
-    <div className={responsiveClasses.spacing}>
+    <div className={responsiveClasses.formContainer}>
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <User className={`${responsiveClasses.iconSize} text-bigg-bee-orange mx-auto animate-bigg-pulse`} />
@@ -533,14 +533,14 @@ export default function RegisterPage() {
         <h2 className={`${responsiveClasses.headingSize} font-bold bg-gradient-to-r from-white to-bigg-chrome bg-clip-text text-transparent`}>
           Personal Information
         </h2>
-        <p className={`text-gray-300 ${deviceInfo.isMobile ? 'text-base' : 'text-lg'} font-medium`}>
+        <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium`}>
           Complete your profile information
         </p>
       </div>
 
-      <div className={`grid ${responsiveClasses.gridCols} ${deviceInfo.isMobile ? 'gap-4' : 'gap-6'}`}>
-        <div className="space-y-3">
-          <Label htmlFor="firstName" className="text-bigg-neon-green font-bold text-base">
+      <div className={responsiveClasses.formGrid}>
+        <div className="space-y-3 sm:space-y-4">
+          <Label htmlFor="firstName" className="text-bigg-neon-green font-bold text-base sm:text-lg">
             First Name
           </Label>
           <Input
@@ -555,15 +555,15 @@ export default function RegisterPage() {
             className={`${responsiveClasses.inputSize} ${errors.firstName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
           />
           {errors.firstName && (
-            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
               {errors.firstName}
             </p>
           )}
         </div>
 
-        <div className="space-y-3">
-          <Label htmlFor="lastName" className="text-bigg-neon-green font-bold text-base">
+        <div className="space-y-3 sm:space-y-4">
+          <Label htmlFor="lastName" className="text-bigg-neon-green font-bold text-base sm:text-lg">
             Last Name
           </Label>
           <Input
@@ -578,7 +578,7 @@ export default function RegisterPage() {
             className={`${responsiveClasses.inputSize} ${errors.lastName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
           />
           {errors.lastName && (
-            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
               {errors.lastName}
             </p>
@@ -586,8 +586,8 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <Label htmlFor="phone" className="text-bigg-neon-green font-bold text-base">
+      <div className="space-y-3 sm:space-y-4">
+        <Label htmlFor="phone" className="text-bigg-neon-green font-bold text-base sm:text-lg">
           Mobile Phone Number
         </Label>
         <MobileInput
@@ -600,7 +600,7 @@ export default function RegisterPage() {
           className={`${responsiveClasses.inputSize} ${errors.phone ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
         />
         {errors.phone && (
-          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
             <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
             {errors.phone}
           </p>
@@ -610,8 +610,8 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div className="space-y-3">
-        <Label htmlFor="email" className="text-bigg-chrome font-bold text-base">
+      <div className="space-y-3 sm:space-y-4">
+        <Label htmlFor="email" className="text-bigg-chrome font-bold text-base sm:text-lg">
           Email Address <span className="text-gray-400 font-normal">(Optional)</span>
         </Label>
         <Input
@@ -626,7 +626,7 @@ export default function RegisterPage() {
           className={`${responsiveClasses.inputSize} ${errors.email ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
         />
         {errors.email && (
-          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
             <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
             {errors.email}
           </p>
@@ -634,8 +634,8 @@ export default function RegisterPage() {
       </div>
 
       {/* Marketing Consent - POPIA Compliant */}
-      <div className={`bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 ${deviceInfo.isMobile ? 'p-4' : 'p-6'} rounded-xl border border-bigg-bee-orange/20`}>
-        <div className={`flex items-start ${deviceInfo.isMobile ? 'space-x-3' : 'space-x-4'}`}>
+      <div className="bg-gradient-to-r from-bigg-bee-orange/10 to-bigg-neon-green/10 p-4 sm:p-6 rounded-xl border border-bigg-bee-orange/20">
+        <div className="flex items-start space-x-3 sm:space-x-4">
           <Checkbox
             id="marketingConsent"
             checked={formData.marketingConsent}
@@ -645,10 +645,10 @@ export default function RegisterPage() {
             className={`mt-1 ${deviceInfo.touchDevice ? 'min-w-5 min-h-5' : ''}`}
           />
           <div className="flex-1">
-            <Label htmlFor="marketingConsent" className={`${deviceInfo.isMobile ? 'text-sm' : 'text-base'} font-bold text-white cursor-pointer`}>
+            <Label htmlFor="marketingConsent" className="text-sm sm:text-base font-bold text-white cursor-pointer">
               Marketing Communications <span className="text-bigg-bee-orange">(Optional)</span>
             </Label>
-            <div className={`mt-3 ${deviceInfo.isMobile ? 'text-xs' : 'text-sm'} text-gray-300 leading-relaxed space-y-2`}>
+            <div className="mt-3 text-xs sm:text-sm text-gray-300 leading-relaxed space-y-2">
               <p>
                 I consent to Bigg Buzz (Pty) Ltd and its authorized partners sending me marketing communications,
                 promotional offers, product updates, and newsletters via email, SMS, and other electronic means.
