@@ -12,7 +12,9 @@ datasource db {
 model User {
   id                  String   @id @default(cuid())
   email               String?  @unique
+  emailVerified       DateTime?
   phone               String?  @unique
+  phoneVerified       DateTime?
   saId                String?  @unique // Encrypted SA ID
   firstName           String?
   lastName            String?
@@ -63,6 +65,7 @@ enum TokenType {
   PASSWORD_RESET
   OTP_LOGIN
   OTP_REGISTRATION
+  OTP_VERIFICATION
   ACCESS_TOKEN
   REFRESH_TOKEN
 }

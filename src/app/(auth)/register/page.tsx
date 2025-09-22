@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MobileInput } from '@/components/ui/mobile-input';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Skeleton } from '@/components/ui/skeleton';
 import { validateSAID, parseSAID, validatePhoneNumber, normalizePhoneNumber, unformatPhoneNumber } from '@/lib/validation';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useDeviceDetection, getResponsiveClasses, getOptimalFormLayout, getDeviceContainerClasses } from '@/lib/utils/device';
@@ -446,9 +448,44 @@ export default function RegisterPage() {
     );
   };
 
+  const stepVariants = {
+    hidden: { opacity: 0, x: 50, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut",
+        staggerChildren: 0.1
+      }
+    },
+    exit: {
+      opacity: 0,
+      x: -50,
+      scale: 0.95,
+      transition: { duration: 0.3, ease: "easeIn" }
+    }
+  };
+
+  const childVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.3, ease: "easeOut" }
+    }
+  };
+
   const renderIdentityStep = () => (
-    <div className={responsiveClasses.formContainer}>
-      <div className={`text-center ${responsiveClasses.spacing}`}>
+    <motion.div
+      className={responsiveClasses.formContainer}
+      variants={stepVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
+      <motion.div className={`text-center ${responsiveClasses.spacing}`} variants={childVariants}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <Shield className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto animate-bigg-pulse`} />
           <div className="absolute inset-0 bg-bigg-neon-green/20 rounded-full blur-xl animate-pulse" />
@@ -459,34 +496,39 @@ export default function RegisterPage() {
         <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium`}>
           Please enter your South African ID number to verify your age
         </p>
-      </div>
+      </motion.div>
 
-      <div className={responsiveClasses.spacing}>
-        <div className="space-y-3 sm:space-y-4">
-          <Label htmlFor="saId" className="text-bigg-neon-green font-bold text-base sm:text-lg">
+      <motion.div className={responsiveClasses.spacing} variants={childVariants}>
+        <div className="w-full max-w-sm mx-auto space-y-3 sm:space-y-4">
+          <Label htmlFor="saId" className="text-bigg-neon-green font-bold text-base sm:text-lg block text-center">
             South African ID Number
           </Label>
-          <Input
-            id="saId"
-            type="text"
-            placeholder="0000000000000"
-            value={formData.saId}
-            onChange={(e) => {
-              const value = e.target.value.replace(/\D/g, '').slice(0, 13);
-              setFormData({ ...formData, saId: value });
-              if (errors.saId) setErrors({ ...errors, saId: '' });
-            }}
-            className={`${responsiveClasses.inputSize} ${errors.saId ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
-            maxLength={13}
-          />
+          <motion.div
+            whileFocus={{ scale: 1.02 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Input
+              id="saId"
+              type="text"
+              placeholder="0000000000000"
+              value={formData.saId}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, '').slice(0, 13);
+                setFormData({ ...formData, saId: value });
+                if (errors.saId) setErrors({ ...errors, saId: '' });
+              }}
+              className={`w-full transition-all duration-300 ${errors.saId ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+              maxLength={13}
+            />
+          </motion.div>
           {errors.saId && (
-            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4">
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 sm:p-4 w-full">
               <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
               {errors.saId}
             </p>
           )}
           {formData.saId.length === 13 && !errors.saId && saIdInfo && (
-            <div className="text-sm text-bigg-neon-green mt-2 bg-bigg-neon-green/10 border border-bigg-neon-green/20 rounded-lg p-3 sm:p-4">
+            <div className="text-sm text-bigg-neon-green mt-2 bg-bigg-neon-green/10 border border-bigg-neon-green/20 rounded-lg p-3 sm:p-4 w-full">
               <p className="flex items-center font-semibold">
                 <CheckCircle className="w-5 h-5 mr-2 flex-shrink-0" />
                 Valid SA ID - Age: {saIdInfo.age}, Gender: {saIdInfo.gender}
@@ -519,12 +561,18 @@ export default function RegisterPage() {
             {errors.ageVerification}
           </p>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 
   const renderPersonalInfoStep = () => (
-    <div className={responsiveClasses.formContainer}>
+    <motion.div
+      className={responsiveClasses.formContainer}
+      variants={stepVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <User className={`${responsiveClasses.iconSize} text-bigg-bee-orange mx-auto animate-bigg-pulse`} />
@@ -538,9 +586,9 @@ export default function RegisterPage() {
         </p>
       </div>
 
-      <div className={responsiveClasses.formGrid}>
-        <div className="space-y-3 sm:space-y-4">
-          <Label htmlFor="firstName" className="text-bigg-neon-green font-bold text-base sm:text-lg">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg mx-auto">
+        <div className="w-full space-y-3 sm:space-y-4">
+          <Label htmlFor="firstName" className="text-bigg-neon-green font-bold text-base sm:text-lg block text-center">
             First Name
           </Label>
           <Input
@@ -552,18 +600,18 @@ export default function RegisterPage() {
               setFormData({ ...formData, firstName: e.target.value });
               if (errors.firstName) setErrors({ ...errors, firstName: '' });
             }}
-            className={`${responsiveClasses.inputSize} ${errors.firstName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+            className={`w-full ${errors.firstName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
           />
           {errors.firstName && (
-            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 w-full">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
               {errors.firstName}
             </p>
           )}
         </div>
 
-        <div className="space-y-3 sm:space-y-4">
-          <Label htmlFor="lastName" className="text-bigg-neon-green font-bold text-base sm:text-lg">
+        <div className="w-full space-y-3 sm:space-y-4">
+          <Label htmlFor="lastName" className="text-bigg-neon-green font-bold text-base sm:text-lg block text-center">
             Last Name
           </Label>
           <Input
@@ -575,10 +623,10 @@ export default function RegisterPage() {
               setFormData({ ...formData, lastName: e.target.value });
               if (errors.lastName) setErrors({ ...errors, lastName: '' });
             }}
-            className={`${responsiveClasses.inputSize} ${errors.lastName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+            className={`w-full ${errors.lastName ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
           />
           {errors.lastName && (
-            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+            <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 w-full">
               <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
               {errors.lastName}
             </p>
@@ -586,32 +634,34 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="space-y-3 sm:space-y-4">
-        <Label htmlFor="phone" className="text-bigg-neon-green font-bold text-base sm:text-lg">
+      <div className="w-full max-w-sm mx-auto space-y-3 sm:space-y-4">
+        <Label htmlFor="phone" className="text-bigg-neon-green font-bold text-base sm:text-lg block text-center">
           Mobile Phone Number
         </Label>
-        <MobileInput
-          id="phone"
-          value={formData.phone}
-          onChange={(cleanValue, formattedValue) => {
-            setFormData({ ...formData, phone: formattedValue });
-            if (errors.phone) setErrors({ ...errors, phone: '' });
-          }}
-          className={`${responsiveClasses.inputSize} ${errors.phone ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
-        />
+        <div className="w-full">
+          <MobileInput
+            id="phone"
+            value={formData.phone}
+            onChange={(cleanValue, formattedValue) => {
+              setFormData({ ...formData, phone: formattedValue });
+              if (errors.phone) setErrors({ ...errors, phone: '' });
+            }}
+            className={`w-full ${errors.phone ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+          />
+        </div>
         {errors.phone && (
-          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 w-full">
             <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
             {errors.phone}
           </p>
         )}
-        <p className="text-sm text-gray-400 mt-2 font-medium">
+        <p className="text-sm text-gray-400 mt-2 font-medium text-center">
           e.g., 082 329 2438
         </p>
       </div>
 
-      <div className="space-y-3 sm:space-y-4">
-        <Label htmlFor="email" className="text-bigg-chrome font-bold text-base sm:text-lg">
+      <div className="w-full max-w-sm mx-auto space-y-3 sm:space-y-4">
+        <Label htmlFor="email" className="text-bigg-chrome font-bold text-base sm:text-lg block text-center">
           Email Address <span className="text-gray-400 font-normal">(Optional)</span>
         </Label>
         <Input
@@ -623,10 +673,10 @@ export default function RegisterPage() {
             setFormData({ ...formData, email: e.target.value });
             if (errors.email) setErrors({ ...errors, email: '' });
           }}
-          className={`${responsiveClasses.inputSize} ${errors.email ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
+          className={`w-full ${errors.email ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50' : ''}`}
         />
         {errors.email && (
-          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+          <p className="text-red-400 text-sm mt-2 flex items-center bg-red-500/10 border border-red-500/20 rounded-lg p-3 w-full">
             <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
             {errors.email}
           </p>
@@ -670,11 +720,17 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   const renderMobileVerificationStep = () => (
-    <div className={responsiveClasses.formContainer}>
+    <motion.div
+      className={responsiveClasses.formContainer}
+      variants={stepVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+    >
       <div className={`text-center ${responsiveClasses.spacing}`}>
         <div className={`relative mx-auto ${responsiveClasses.iconSize}`}>
           <Phone className={`${responsiveClasses.iconSize} text-bigg-neon-green mx-auto bigg-pulse-green`} />
@@ -684,16 +740,16 @@ export default function RegisterPage() {
           Mobile Verification
         </h2>
         <p className={`text-gray-300 ${responsiveClasses.bodySize} font-medium px-2 sm:px-0`}>
-          We've sent a verification code to {formData.phone}
+          We&apos;ve sent a verification code to {formData.phone}
         </p>
       </div>
 
       <div className={responsiveClasses.spacing}>
         {/* Delivery Method Selection */}
-        <div className="space-y-3 sm:space-y-4">
-          <Label className="text-bigg-neon-green font-bold text-base sm:text-lg">Choose delivery method</Label>
+        <div className="w-full max-w-sm mx-auto space-y-3 sm:space-y-4">
+          <Label className="text-bigg-neon-green font-bold text-base sm:text-lg block text-center">Choose delivery method</Label>
           <Select value={deliveryMethod} onValueChange={(value: 'sms' | 'whatsapp') => setDeliveryMethod(value)}>
-            <SelectTrigger className={`w-full ${responsiveClasses.inputSize} bg-bigg-dark border-bigg-neon-green/20 text-white hover:border-bigg-neon-green/40`}>
+            <SelectTrigger className="w-full bg-bigg-dark border-bigg-neon-green/20 text-white hover:border-bigg-neon-green/40 h-11 px-4">
               <SelectValue placeholder="Select delivery method" />
             </SelectTrigger>
             <SelectContent className="bg-bigg-dark border-bigg-neon-green/20">
@@ -746,12 +802,12 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="text-center space-y-3 sm:space-y-4">
+        <div className="w-full max-w-sm mx-auto space-y-3 sm:space-y-4">
           <Button
             variant="ghost"
             onClick={resendOTP}
             disabled={isLoading || resendCountdown > 0}
-            className={`${responsiveClasses.buttonSize} text-bigg-neon-green hover:text-bigg-neon-green-bright hover:bg-bigg-dark/50 transition-all duration-300`}
+            className="w-full text-bigg-neon-green hover:text-bigg-neon-green-bright hover:bg-bigg-dark/50 transition-all duration-300"
           >
             {isLoading ? (
               <>
@@ -769,13 +825,13 @@ export default function RegisterPage() {
           </Button>
 
           {otpAttempts > 0 && (
-            <p className="text-xs sm:text-sm text-bigg-bee-orange font-medium bg-bigg-bee-orange/10 border border-bigg-bee-orange/20 rounded-lg p-3">
+            <p className="text-xs sm:text-sm text-bigg-bee-orange font-medium bg-bigg-bee-orange/10 border border-bigg-bee-orange/20 rounded-lg p-3 w-full text-center">
               {otpAttempts}/3 attempts used
             </p>
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   const renderTermsConditionsStep = () => (
@@ -876,6 +932,33 @@ export default function RegisterPage() {
     </div>
   );
 
+  const renderFormSkeleton = () => (
+    <div className="w-full max-w-sm mx-auto space-y-6">
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-32 mx-auto" />
+        <Skeleton className="h-11 w-full" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-28 mx-auto" />
+        <Skeleton className="h-11 w-full" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-20 mx-auto" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-20 mx-auto" />
+          <Skeleton className="h-11 w-full" />
+        </div>
+      </div>
+      <div className="flex gap-4">
+        <Skeleton className="h-11 flex-1" />
+        <Skeleton className="h-11 flex-1" />
+      </div>
+    </div>
+  );
+
   const renderCompleteStep = () => (
     <div className={`${responsiveClasses.formContainer} text-center`}>
       <div className="relative mx-auto w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28">
@@ -923,27 +1006,49 @@ export default function RegisterPage() {
                 Join the Hive
               </CardTitle>
               <CardDescription className={`text-gray-300 ${responsiveClasses.bodySize}`}>
-                South Africa's premier cannabis marketplace
+                South Africa&apos;s premier cannabis marketplace
               </CardDescription>
             </CardHeader>
 
             <CardContent className={`${responsiveClasses.contentPadding} ${responsiveClasses.spacing}`}>
               {currentStep !== 'complete' && renderStepIndicator()}
 
-              {currentStep === 'identity' && renderIdentityStep()}
-              {currentStep === 'personal-info' && renderPersonalInfoStep()}
-              {currentStep === 'mobile-verification' && renderMobileVerificationStep()}
-              {currentStep === 'terms-conditions' && renderTermsConditionsStep()}
-              {currentStep === 'complete' && renderCompleteStep()}
+              <AnimatePresence mode="wait">
+                {currentStep === 'identity' && (
+                  <motion.div key="identity">
+                    {renderIdentityStep()}
+                  </motion.div>
+                )}
+                {currentStep === 'personal-info' && (
+                  <motion.div key="personal-info">
+                    {renderPersonalInfoStep()}
+                  </motion.div>
+                )}
+                {currentStep === 'mobile-verification' && (
+                  <motion.div key="mobile-verification">
+                    {renderMobileVerificationStep()}
+                  </motion.div>
+                )}
+                {currentStep === 'terms-conditions' && (
+                  <motion.div key="terms-conditions">
+                    {renderTermsConditionsStep()}
+                  </motion.div>
+                )}
+                {currentStep === 'complete' && (
+                  <motion.div key="complete">
+                    {renderCompleteStep()}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {currentStep !== 'complete' && (
-                <div className={`flex flex-col sm:flex-row ${responsiveClasses.gap} pt-6`}>
+                <div className="flex flex-col sm:flex-row gap-4 pt-6 items-center justify-center max-w-lg mx-auto">
                   {currentStep !== 'identity' && (
                     <Button
                       variant="outline"
                       onClick={handleBack}
                       disabled={isLoading}
-                      className={`${currentStep === 'identity' ? 'hidden' : 'w-full sm:flex-1'} ${responsiveClasses.buttonSize}`}
+                      className="w-full sm:w-auto sm:flex-1"
                     >
                       Back
                     </Button>
@@ -951,7 +1056,7 @@ export default function RegisterPage() {
                   <Button
                     onClick={handleNext}
                     disabled={isLoading}
-                    className={`${currentStep === 'identity' ? 'w-full' : 'w-full sm:flex-1'} shadow-bigg-glow-green-intense ${responsiveClasses.buttonSize}`}
+                    className={`w-full ${currentStep === 'identity' ? '' : 'sm:w-auto sm:flex-1'} shadow-bigg-glow-green-intense`}
                   >
                     {isLoading ? (
                       <>

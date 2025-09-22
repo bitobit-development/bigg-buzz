@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MobileInput } from '@/components/ui/mobile-input';
-import { validateSAID, normalizePhoneNumber, unformatPhoneNumber } from '@/lib/validation';
+import { validateSAID } from '@/lib/validation';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { Loader2, LogIn, Shield, Phone } from 'lucide-react';
 import Link from 'next/link';
@@ -172,7 +172,7 @@ export default function SignInPage() {
             </form>
 
             <div className="text-center text-base text-gray-300 pt-6 border-t border-white/10 mt-8">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/register" className="text-bigg-neon-green hover:text-bigg-neon-green-bright font-bold transition-colors duration-300 hover:underline">
                 Join the Hive
               </Link>

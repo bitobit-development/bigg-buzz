@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { otpVerificationSchema, normalizePhoneNumber } from '@/lib/validation'
-import { verifyOTP } from '@/lib/sms'
+import { verifyOTP, cleanupExpiredOTPs } from '@/lib/sms'
 
 // Note: Using Node.js runtime for Prisma compatibility
 
@@ -17,29 +17,43 @@ function isTestUserPhone(phone: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // Clean up expired OTPs first
+    await cleanupExpiredOTPs()
+
     const body = await request.json()
+    console.log(`[API] Received OTP verification request:`, { phone: body.phone, otp: body.otp?.substring(0, 3) + '***' })
 
     // Validate input
     const validatedData = otpVerificationSchema.parse(body)
     const { phone, otp } = validatedData
 
     const normalizedPhone = normalizePhoneNumber(phone)
+    console.log(`[API] Normalized phone: ${normalizedPhone}`)
 
     // Check if this is a test user
     const testUser = isTestUserPhone(phone)
+    console.log(`[API] Is test user: ${testUser}`)
 
     // Verify OTP
     const isValidOTP = await verifyOTP(normalizedPhone, otp)
+    console.log(`[API] OTP verification result: ${isValidOTP}`)
 
     if (!isValidOTP) {
+      // For debugging: log the verification attempt
+      console.log(`[API] OTP verification failed for ${normalizedPhone}: ${otp}`)
       return NextResponse.json(
-        { error: 'Invalid or expired verification code' },
+        {
+          error: 'Invalid or expired verification code',
+          code: 'INVALID_OTP',
+          details: 'The verification code you entered is either invalid or has expired. Please request a new code.'
+        },
         { status: 400 }
       )
     }
 
     // For test users, return simulated response without database operations
     if (testUser) {
+      console.log(`[API] Returning test user response`)
       return NextResponse.json({
         success: true,
         message: 'Test user phone number verified successfully',
@@ -57,19 +71,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Find user and update verification status
+    console.log(`[API] Looking for user with phone: ${normalizedPhone}`)
     const user = await prisma.user.findUnique({
       where: { phone: normalizedPhone },
     })
 
     if (!user) {
+      console.log(`[API] User not found with phone: ${normalizedPhone}`)
       return NextResponse.json(
-        { error: 'User not found' },
+        {
+          error: 'User not found',
+          code: 'USER_NOT_FOUND',
+          details: 'No user account found with this phone number. Please register first.'
+        },
         { status: 404 }
       )
     }
 
+    console.log(`[API] Found user: ${user.id}, current phoneVerified: ${user.phoneVerified}`)
+
     // Update phone verification - don't activate account yet (that happens in complete-registration)
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
         phoneVerified: new Date(),
@@ -77,6 +99,7 @@ export async function POST(request: NextRequest) {
         // lastLoginAt: new Date(),
       },
     })
+    console.log(`[API] Updated user phone verification: ${updatedUser.id}`)
 
     // Log compliance event
     await prisma.complianceEvent.create({
@@ -93,6 +116,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log(`[API] Verification successful for user: ${user.id}`)
     return NextResponse.json({
       success: true,
       message: 'Phone number verified successfully',
@@ -108,17 +132,26 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('OTP verification error:', error)
+    console.error('[API] OTP verification error:', error)
 
     if (error instanceof Error && error.name === 'ZodError') {
+      console.error('[API] Validation error:', error)
       return NextResponse.json(
-        { error: 'Invalid input data', details: error },
+        {
+          error: 'Invalid input data',
+          code: 'VALIDATION_ERROR',
+          details: error
+        },
         { status: 400 }
       )
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        code: 'SERVER_ERROR',
+        details: 'An unexpected error occurred. Please try again later.'
+      },
       { status: 500 }
     )
   }

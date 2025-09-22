@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
-import { Header, Footer } from '@/components/layout';
+import { ConditionalLayout } from '@/components/layout';
 import './globals.css';
 
 const inter = Inter({
@@ -48,12 +48,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} font-sans antialiased`}>
-        <div className="relative flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </div>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
+        <ConditionalLayout>{children}</ConditionalLayout>
         <Toaster />
       </body>
     </html>

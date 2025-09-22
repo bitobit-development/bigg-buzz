@@ -130,8 +130,8 @@ export function getResponsiveClasses(deviceInfo: DeviceInfo) {
   const { touchDevice, breakpoint } = deviceInfo;
 
   return {
-    // Container: Flexible across all screen sizes - can extend/shrink naturally
-    container: 'w-full max-w-none sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] mx-auto px-4 sm:px-6 md:px-8',
+    // Container: Centered with flexible width - no max-width constraints, allows full resizing
+    container: 'w-full max-w-none mx-auto px-4 sm:px-6 md:px-8',
 
     // Card padding: Responsive padding for proper spacing
     cardPadding: 'p-4 sm:p-6 md:p-8',
@@ -148,14 +148,15 @@ export function getResponsiveClasses(deviceInfo: DeviceInfo) {
     subheadingSize: 'text-lg sm:text-xl md:text-2xl',
     bodySize: 'text-base sm:text-lg md:text-xl',
 
-    // Interactive elements: Touch-optimized for touch devices
+    // Interactive elements: Touch-optimized for touch devices with FIXED widths
     buttonSize: touchDevice
-      ? 'min-h-12 px-6 py-3 text-base sm:text-lg'
-      : 'min-h-10 px-4 py-2 text-sm sm:text-base md:text-lg',
+      ? 'min-h-12 px-6 py-3 text-base'
+      : 'min-h-10 px-4 py-2 text-sm',
 
+    // FIXED input sizing - no responsive width changes, only height for touch devices
     inputSize: touchDevice
-      ? 'min-h-12 px-4 text-base'
-      : 'min-h-10 px-3 text-sm md:text-base',
+      ? 'min-h-12 px-4 text-base w-full max-w-sm'
+      : 'min-h-10 px-3 text-sm w-full max-w-sm',
 
     // OTP input: Responsive sizing for better usability
     otpSlotSize: 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14',
@@ -185,12 +186,12 @@ export function getResponsiveClasses(deviceInfo: DeviceInfo) {
     paddingY: 'py-4 sm:py-6 md:py-8',
     paddingX: 'px-4 sm:px-6 md:px-8',
 
-    // Form-specific responsive classes
-    formContainer: 'space-y-4 sm:space-y-6 md:space-y-8',
-    formGrid: 'grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2',
+    // Form-specific classes with FIXED optimal widths
+    formContainer: 'space-y-4 sm:space-y-6 md:space-y-8 w-full max-w-md mx-auto',
+    formGrid: 'grid grid-cols-1 gap-4 md:grid-cols-2 max-w-lg mx-auto',
     formButton: touchDevice
-      ? 'w-full min-h-12 text-base font-semibold'
-      : 'w-full min-h-10 text-sm sm:text-base font-semibold',
+      ? 'min-h-12 text-base font-semibold w-full max-w-sm mx-auto'
+      : 'min-h-10 text-sm font-semibold w-full max-w-sm mx-auto',
 
     // Step indicator
     stepIndicator: 'text-center mb-6 sm:mb-8 md:mb-10',
@@ -247,7 +248,7 @@ export function getOptimalFormLayout(deviceInfo: DeviceInfo): string {
   const { isMobile, isTablet, orientation, screenWidth } = deviceInfo;
 
   // Base classes for flexible layout that can extend/shrink naturally
-  const baseClasses = 'min-h-screen flex flex-col';
+  const baseClasses = 'min-h-screen flex flex-col items-center';
 
   // Dynamic padding based on viewport width using CSS clamp for smooth scaling
   const dynamicPadding = screenWidth < 640
@@ -277,14 +278,8 @@ export function getOptimalFormLayout(deviceInfo: DeviceInfo): string {
 export function getDeviceContainerClasses(deviceInfo: DeviceInfo): string {
   const { screenWidth, screenHeight } = deviceInfo;
 
-  // Flexible width based on viewport with natural scaling
-  const flexibleWidth = screenWidth < 640
-    ? 'w-full'
-    : screenWidth < 1024
-    ? 'w-full max-w-[min(90vw,42rem)]'
-    : screenWidth < 1440
-    ? 'w-full max-w-[min(80vw,56rem)]'
-    : 'w-full max-w-[min(70vw,72rem)]';
+  // Completely flexible width - no constraints, allows full viewport usage
+  const flexibleWidth = 'w-full';
 
   // Flexible padding that scales with viewport
   const flexiblePadding = screenWidth < 640

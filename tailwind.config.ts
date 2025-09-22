@@ -13,7 +13,7 @@ const config: Config = {
       center: true,
       padding: '2rem',
       screens: {
-        '2xl': '1400px',
+        // Removed max-width constraint to allow full-width responsive design
       },
     },
     extend: {

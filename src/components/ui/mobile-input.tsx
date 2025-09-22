@@ -48,11 +48,11 @@ const MobileInput = React.forwardRef<HTMLInputElement, MobileInputProps>(
     }
 
     return (
-      <div className="relative">
+      <div className="relative w-full max-w-sm">
         <Input
           type="tel"
           className={cn(
-            "pr-10",
+            "pr-10 w-full",
             className
           )}
           placeholder="082 329 2438"

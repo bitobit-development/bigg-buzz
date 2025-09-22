@@ -224,6 +224,13 @@
   .bigg-chrome-shine {
     animation: chrome-shine 3s ease-in-out infinite;
   }
+
+  /* Skeleton shimmer animation */
+  .shimmer {
+    background: linear-gradient(110deg, transparent 40%, rgba(0, 255, 136, 0.5) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation: shimmer 2s ease-in-out infinite;
+  }
 }
 
 @keyframes chrome-shine {
@@ -267,6 +274,15 @@
   }
   66% {
     transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 

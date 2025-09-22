@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 
 export default function Home() {
@@ -13,7 +13,7 @@ export default function Home() {
             <span className="text-cannabis-600">Bigg Buzz</span>
           </h1>
           <p className="mx-auto max-w-[700px] text-lg text-muted-foreground sm:text-xl">
-            South Africa's premier cannabis marketplace connecting consumers with verified vendors.
+            South Africa&apos;s premier cannabis marketplace connecting consumers with verified vendors.
             Discover quality products from trusted local suppliers.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
@@ -102,7 +102,7 @@ export default function Home() {
             Ready to Get Started?
           </h2>
           <p className="mx-auto max-w-[600px] text-muted-foreground">
-            Join thousands of satisfied customers and verified vendors on South Africa's most trusted cannabis marketplace.
+            Join thousands of satisfied customers and verified vendors on South Africa&apos;s most trusted cannabis marketplace.
           </p>
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <Button asChild size="lg">

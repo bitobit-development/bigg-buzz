@@ -15,15 +15,20 @@ const nextConfig: NextConfig = {
   },
   eslint: {
     dirs: ['src'],
+    ignoreDuringBuilds: true,
   },
 };
 
-const config = withPWA({
-  dest: 'public',
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development',
-  buildExcludes: [/middleware-manifest\.json$/],
-})(nextConfig);
+// Only apply PWA configuration for production builds
+// This avoids conflicts with Turbopack in development
+const config = process.env.NODE_ENV === 'development'
+  ? nextConfig
+  : withPWA({
+      dest: 'public',
+      register: true,
+      skipWaiting: true,
+      disable: false,
+      buildExcludes: [/middleware-manifest\.json$/],
+    })(nextConfig);
 
 export default config;

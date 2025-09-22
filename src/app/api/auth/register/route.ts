@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateSAID, parseSAID, registrationSchema, normalizePhoneNumber } from '@/lib/validation'
-import { sendOTP } from '@/lib/sms'
+import { sendOTP, cleanupExpiredOTPs } from '@/lib/sms'
 import { encrypt } from '@/lib/security'
 
 // Note: Using Node.js runtime for Prisma compatibility
@@ -32,6 +32,9 @@ function isTestUser(data: { saId: string; phone: string; firstName: string; last
 
 export async function POST(request: NextRequest) {
   try {
+    // Clean up expired OTPs first
+    await cleanupExpiredOTPs()
+
     const body = await request.json()
 
     // Validate partial input (terms will be validated later)
