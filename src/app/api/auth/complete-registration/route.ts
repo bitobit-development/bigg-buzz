@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // Note: Using Node.js runtime for Prisma compatibility
+// Fixed to use subscriber table instead of user table
 
 const completeRegistrationSchema = z.object({
   userId: z.string(),
@@ -39,34 +40,36 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check if user exists and is verified
-    const user = await prisma.user.findUnique({
+    // Check if subscriber exists and is verified
+    const subscriber = await prisma.subscriber.findUnique({
       where: { id: userId },
     })
 
-    if (!user) {
+    if (!subscriber) {
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Subscriber not found' },
         { status: 404 }
       )
     }
 
-    if (!user.phoneVerified) {
+    if (!subscriber.phoneVerified) {
       return NextResponse.json(
         { error: 'Phone number must be verified first' },
         { status: 400 }
       )
     }
 
-    if (user.isActive && user.termsAccepted && user.privacyAccepted) {
+    if (subscriber.isActive && subscriber.termsAccepted && subscriber.privacyAccepted) {
       return NextResponse.json(
         { error: 'Registration has already been completed' },
         { status: 400 }
       )
     }
 
-    // Update user with terms acceptance and activate account
-    const updatedUser = await prisma.user.update({
+    // Update subscriber with terms acceptance, activate account, and add signup bonus
+    const SIGNUP_BONUS = 50.00; // R50 signup bonus
+
+    const updatedSubscriber = await prisma.subscriber.update({
       where: { id: userId },
       data: {
         termsAccepted,
@@ -74,19 +77,40 @@ export async function POST(request: NextRequest) {
         privacyAccepted,
         privacyAcceptedDate: new Date(),
         isActive: true,
+        tokenBalance: SIGNUP_BONUS, // Add R50 signup bonus
+      },
+    })
+
+    // Create token transaction record for the signup bonus
+    await prisma.tokenTransaction.create({
+      data: {
+        subscriberId: userId,
+        type: 'BONUS',
+        amount: SIGNUP_BONUS,
+        balance: SIGNUP_BONUS,
+        description: 'Welcome bonus for new subscribers',
+        status: 'COMPLETED',
+        processedAt: new Date(),
+        metadata: JSON.stringify({
+          bonusType: 'SIGNUP_BONUS',
+          amount: SIGNUP_BONUS,
+          grantedAt: new Date().toISOString(),
+        }),
       },
     })
 
     // Log compliance event
     await prisma.complianceEvent.create({
       data: {
-        userId: user.id,
-        eventType: 'REGISTRATION_COMPLETED',
-        description: 'User completed registration and accepted terms',
-        metadata: {
+        subscriberId: subscriber.id,
+        eventType: 'USER_REGISTRATION',
+        description: 'Subscriber completed registration, accepted terms, and received signup bonus',
+        metadata: JSON.stringify({
           termsAccepted,
           privacyAccepted,
-        },
+          signupBonus: SIGNUP_BONUS,
+          bonusGranted: true,
+        }),
         ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
         userAgent: request.headers.get('user-agent'),
       },
@@ -96,13 +120,13 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Registration completed successfully',
       user: {
-        id: updatedUser.id,
-        firstName: updatedUser.firstName,
-        lastName: updatedUser.lastName,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        isActive: updatedUser.isActive,
-        isPhoneVerified: !!updatedUser.phoneVerified,
+        id: updatedSubscriber.id,
+        firstName: updatedSubscriber.firstName,
+        lastName: updatedSubscriber.lastName,
+        email: updatedSubscriber.email,
+        phone: updatedSubscriber.phone,
+        isActive: updatedSubscriber.isActive,
+        isPhoneVerified: !!updatedSubscriber.phoneVerified,
       },
     })
 

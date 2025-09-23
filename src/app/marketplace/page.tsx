@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -46,7 +46,34 @@ import { useDashboardStats } from '@/lib/hooks/use-dashboard-stats';
 
 export default function MarketplacePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('browse');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        // Check if subscriber token exists
+        const response = await fetch('/api/subscribers/profile');
+        if (response.ok) {
+          setIsAuthenticated(true);
+        } else {
+          // Not authenticated, redirect to sign-in
+          router.push('/sign-in');
+          return;
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        router.push('/sign-in');
+        return;
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   // Real subscriber data
   const { subscriber, loading: profileLoading, error: profileError } = useSubscriberProfile();
@@ -170,10 +197,20 @@ export default function MarketplacePage() {
 
   const handleLogout = async () => {
     try {
-      // Clear the marketplace token cookie
-      document.cookie = 'marketplace-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      toast.success('Logged out successfully');
-      router.push('/sign-in');
+      // Call server-side logout endpoint
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        toast.success('Logged out successfully');
+        router.push('/sign-in');
+      } else {
+        throw new Error('Logout failed');
+      }
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Logout failed');
@@ -197,6 +234,23 @@ export default function MarketplacePage() {
     console.error(`Product ${productId} error:`, errorMessage);
     toast.error('Unable to process product action. Please try again.');
   };
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-emerald-400">Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-black">

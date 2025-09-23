@@ -11,6 +11,57 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Handle marketplace route protection
+  if (pathname.startsWith('/marketplace')) {
+    // Check for subscriber token
+    const token = request.cookies.get('subscriber-token')?.value
+
+    if (!token) {
+      // Redirect to sign-in if no token
+      return NextResponse.redirect(new URL('/sign-in', request.url))
+    }
+
+    try {
+      // Verify JWT token
+      const { payload } = await jwtVerify(token, JWT_SECRET)
+
+      // Ensure this is a subscriber token
+      if (payload.type !== 'subscriber') {
+        // Invalid subscriber token, redirect to sign-in
+        const response = NextResponse.redirect(new URL('/sign-in', request.url))
+        // Clear invalid token
+        response.cookies.set('subscriber-token', '', {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 0,
+          path: '/'
+        })
+        return response
+      }
+
+      // Token is valid, allow access
+      return NextResponse.next()
+
+    } catch (error) {
+      console.error('Marketplace token verification failed:', error)
+
+      // Invalid or expired token, redirect to sign-in
+      const response = NextResponse.redirect(new URL('/sign-in', request.url))
+
+      // Clear invalid token
+      response.cookies.set('subscriber-token', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/'
+      })
+
+      return response
+    }
+  }
+
   // Handle admin routes
   if (pathname.startsWith('/admin')) {
     // Check for admin token
@@ -70,7 +121,9 @@ export const config = {
   matcher: [
     // Match all admin routes but exclude admin-login
     '/admin/:path*',
-    // Exclude static files, API routes, and admin-login from general middleware
-    '/((?!api|_next/static|_next/image|favicon.ico|admin-login).*)',
+    // Match marketplace routes
+    '/marketplace/:path*',
+    // Exclude static files, API routes, auth pages and admin-login from general middleware
+    '/((?!api|_next/static|_next/image|favicon.ico|admin-login|sign-in|register|$).*)',
   ],
 }

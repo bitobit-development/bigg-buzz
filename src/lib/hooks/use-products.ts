@@ -137,16 +137,25 @@ export const useProducts = (
   // Ref to track if component is mounted
   const isMountedRef = useRef(true);
 
+  // Debug logging
+  const debugLog = (message: string, data?: any) => {
+    console.log(`[useProducts] ${message}`, data || '');
+  };
+
   // Memoize filters to prevent unnecessary re-renders
-  const memoizedFilters = useMemo(() => ({
-    category: filters.category,
-    search: filters.search,
-    minPrice: filters.minPrice,
-    maxPrice: filters.maxPrice,
-    strain: filters.strain,
-    inStock: filters.inStock,
-    vendorId: filters.vendorId
-  }), [
+  const memoizedFilters = useMemo(() => {
+    const filters_obj = {
+      category: filters.category,
+      search: filters.search,
+      minPrice: filters.minPrice,
+      maxPrice: filters.maxPrice,
+      strain: filters.strain,
+      inStock: filters.inStock,
+      vendorId: filters.vendorId
+    };
+    debugLog('Filters memoized:', filters_obj);
+    return filters_obj;
+  }, [
     filters.category,
     filters.search,
     filters.minPrice,
@@ -157,9 +166,15 @@ export const useProducts = (
   ]);
 
   const fetchProducts = useCallback(async () => {
-    // Prevent fetch if component is unmounted
-    if (!isMountedRef.current) return;
+    debugLog('fetchProducts called', { isMounted: isMountedRef.current });
 
+    // Prevent fetch if component is unmounted
+    if (!isMountedRef.current) {
+      debugLog('Component unmounted, skipping fetch');
+      return;
+    }
+
+    debugLog('Starting fetch, setting loading=true');
     setLoading(true);
     setError(null);
 
@@ -198,54 +213,90 @@ export const useProducts = (
       searchParams.set('sortBy', 'name');
       searchParams.set('sortOrder', 'asc');
 
-      const response = await fetch(`/api/products?${searchParams.toString()}`);
+      const url = `/api/products?${searchParams.toString()}`;
+      debugLog('Making API request to:', url);
+
+      const response = await fetch(url);
+      debugLog('API response received:', { status: response.status, ok: response.ok });
 
       if (!response.ok) {
         throw new Error(`Failed to fetch products: ${response.status}`);
       }
 
       const data = await response.json();
+      debugLog('API data parsed:', { productsCount: data.products?.length, pagination: data.pagination });
 
-      // Only update state if component is still mounted
-      if (!isMountedRef.current) return;
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) {
+        debugLog('Component unmounted during fetch, discarding data');
+        return;
+      }
 
       // Transform API products to UI format
       const transformedProducts = data.products.map(transformApiProduct);
+      debugLog('Products transformed:', { transformedCount: transformedProducts.length });
 
       setProducts(transformedProducts);
       setPagination(data.pagination);
+      debugLog('State updated successfully');
 
     } catch (err) {
       console.error('Error fetching products:', err);
-      // Only update state if component is still mounted
-      if (!isMountedRef.current) return;
+      debugLog('Error occurred:', err);
+
+      // Check if component is still mounted before updating state
+      if (!isMountedRef.current) {
+        debugLog('Component unmounted during error, not updating state');
+        return;
+      }
 
       setError(err instanceof Error ? err.message : 'Failed to load products');
       setProducts([]); // Clear products on error
+      debugLog('Error state updated');
     } finally {
-      // Only update state if component is still mounted
+      // Always try to set loading to false, but check if component is mounted
+      debugLog('Finally block executing', { isMounted: isMountedRef.current });
       if (isMountedRef.current) {
+        debugLog('Setting loading=false');
         setLoading(false);
+      } else {
+        debugLog('Component unmounted, not setting loading=false');
       }
     }
   }, [memoizedFilters, page, limit]);
 
   useEffect(() => {
+    debugLog('useEffect triggered, calling fetchProducts');
     fetchProducts();
   }, [fetchProducts]);
 
   // Cleanup effect to prevent memory leaks
   useEffect(() => {
+    // Set mounted ref on mount
+    isMountedRef.current = true;
+    debugLog('Component mounted');
+
     return () => {
+      debugLog('Component unmounting');
       isMountedRef.current = false;
     };
   }, []);
 
   const refetch = useCallback(() => {
+    debugLog('refetch called', { isMounted: isMountedRef.current });
     if (isMountedRef.current) {
       fetchProducts();
+    } else {
+      debugLog('Component unmounted, not refetching');
     }
   }, [fetchProducts]);
+
+  debugLog('Hook returning state', {
+    productsCount: products.length,
+    loading,
+    error: !!error,
+    isMounted: isMountedRef.current
+  });
 
   return {
     products,
