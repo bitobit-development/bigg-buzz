@@ -1,119 +1,218 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 
 interface CartItem {
   id: string;
   productId: string;
-  name: string;
-  price: number;
   quantity: number;
-  image: string;
-  vendorId: string;
-  vendorName: string;
-  variant?: {
-    size?: string;
-    strain?: string;
-    thc?: number;
-    cbd?: number;
+  priceAtAdd: number;
+  variant?: any;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    images: string[];
+    inStock: boolean;
+    stockQuantity: number;
+    vendor: {
+      id: string;
+      name: string;
+    };
   };
 }
 
-interface CartState {
-  items: CartItem[];
-  total: number;
+interface CartSummary {
   itemCount: number;
-  isOpen: boolean;
-
-  // Actions
-  addItem: (item: Omit<CartItem, 'id'>) => void;
-  removeItem: (id: string) => void;
-  updateQuantity: (id: string, quantity: number) => void;
-  clearCart: () => void;
-  toggleCart: () => void;
-  calculateTotal: () => void;
+  subtotal: number;
+  tax: number;
+  total: number;
 }
 
-export const useCartStore = create<CartState>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      total: 0,
-      itemCount: 0,
-      isOpen: false,
+interface CartData {
+  id: string;
+  items: CartItem[];
+  summary: CartSummary;
+}
 
-      addItem: (newItem) => {
-        const { items } = get();
-        const existingItem = items.find(
-          (item) =>
-            item.productId === newItem.productId &&
-            JSON.stringify(item.variant) === JSON.stringify(newItem.variant)
-        );
+interface CartState {
+  cart: CartData | null;
+  isOpen: boolean;
+  loading: boolean;
+  error: string | null;
 
-        if (existingItem) {
-          get().updateQuantity(
-            existingItem.id,
-            existingItem.quantity + newItem.quantity
-          );
-        } else {
-          const id = `${newItem.productId}-${Date.now()}`;
-          set((state) => ({
-            items: [...state.items, { ...newItem, id }],
-          }));
-        }
-        get().calculateTotal();
-      },
+  // Actions
+  fetchCart: () => Promise<void>;
+  addItem: (productId: string, quantity?: number, variant?: any) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  clearCart: () => Promise<void>;
+  toggleCart: () => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: string | null) => void;
+}
 
-      removeItem: (id) => {
-        set((state) => ({
-          items: state.items.filter((item) => item.id !== id),
-        }));
-        get().calculateTotal();
-      },
+export const useCartStore = create<CartState>((set, get) => ({
+  cart: null,
+  isOpen: false,
+  loading: false,
+  error: null,
 
-      updateQuantity: (id, quantity) => {
-        if (quantity <= 0) {
-          get().removeItem(id);
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
+
+  toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
+
+  fetchCart: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch('/api/cart', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        if (response.status === 401) {
+          // User not authenticated, set empty cart
+          set({ cart: { id: '', items: [], summary: { itemCount: 0, subtotal: 0, tax: 0, total: 0 } }, loading: false });
           return;
         }
-
-        set((state) => ({
-          items: state.items.map((item) =>
-            item.id === id ? { ...item, quantity } : item
-          ),
-        }));
-        get().calculateTotal();
-      },
-
-      clearCart: () => {
-        set({
-          items: [],
-          total: 0,
-          itemCount: 0,
-        });
-      },
-
-      toggleCart: () => {
-        set((state) => ({ isOpen: !state.isOpen }));
-      },
-
-      calculateTotal: () => {
-        const { items } = get();
-        const total = items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        );
-        const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-
-        set({ total, itemCount });
-      },
-    }),
-    {
-      name: 'cart-storage',
-      partialize: (state) => ({
-        items: state.items,
-        total: state.total,
-        itemCount: state.itemCount,
-      }),
+        throw new Error('Failed to fetch cart');
+      }
+      const cartData = await response.json();
+      set({ cart: cartData, loading: false });
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+      set({ error: error.message, loading: false });
+      // Don't show toast error for auth issues
+      if (!error.message.includes('Authentication')) {
+        toast.error('Failed to load cart');
+      }
     }
-  )
-);
+  },
+
+  addItem: async (productId, quantity = 1, variant = null) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          productId,
+          quantity,
+          variant,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          toast.error('Please sign in to add items to cart');
+          set({ loading: false });
+          return;
+        }
+        try {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to add item to cart');
+        } catch (jsonError) {
+          // If response doesn't contain JSON, throw a generic error
+          throw new Error(`Failed to add item to cart (${response.status})`);
+        }
+      }
+
+      // Refresh cart data
+      await get().fetchCart();
+      toast.success('Item added to cart');
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      set({ error: error.message, loading: false });
+      if (!error.message.includes('sign in')) {
+        toast.error(error.message || 'Failed to add item to cart');
+      }
+    }
+  },
+
+  updateQuantity: async (itemId, quantity) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ quantity }),
+      });
+
+      if (!response.ok) {
+        try {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to update quantity');
+        } catch (jsonError) {
+          throw new Error(`Failed to update quantity (${response.status})`);
+        }
+      }
+
+      // Refresh cart data
+      await get().fetchCart();
+      toast.success('Quantity updated');
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      set({ error: error.message, loading: false });
+      toast.error(error.message || 'Failed to update quantity');
+    }
+  },
+
+  removeItem: async (itemId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch(`/api/cart/items/${itemId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        try {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to remove item');
+        } catch (jsonError) {
+          throw new Error(`Failed to remove item (${response.status})`);
+        }
+      }
+
+      // Refresh cart data
+      await get().fetchCart();
+      toast.success('Item removed from cart');
+    } catch (error) {
+      console.error('Error removing item:', error);
+      set({ error: error.message, loading: false });
+      toast.error(error.message || 'Failed to remove item');
+    }
+  },
+
+  clearCart: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch('/api/cart', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        try {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to clear cart');
+        } catch (jsonError) {
+          throw new Error(`Failed to clear cart (${response.status})`);
+        }
+      }
+
+      // Refresh cart data
+      await get().fetchCart();
+      toast.success('Cart cleared');
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      set({ error: error.message, loading: false });
+      toast.error(error.message || 'Failed to clear cart');
+    }
+  },
+}));
