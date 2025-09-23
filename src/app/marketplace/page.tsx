@@ -39,157 +39,76 @@ import { toast } from 'sonner';
 import { useCartStore } from '@/lib/stores/cart-store';
 import { CartButton } from '@/components/cart';
 import { useProducts } from '@/lib/hooks/use-products';
+import { useSubscriberProfile } from '@/lib/hooks/use-subscriber-profile';
+import { useOrders } from '@/lib/hooks/use-orders';
+import { useTokenTransactions } from '@/lib/hooks/use-token-transactions';
+import { useDashboardStats } from '@/lib/hooks/use-dashboard-stats';
 
 export default function MarketplacePage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Mock user data for Phase 1
-  const mockUser = {
-    firstName: 'Test',
-    lastName: 'User',
-    email: 'test@biggbuzz.com',
-    phone: '+27821234567'
+  // Real subscriber data
+  const { subscriber, loading: profileLoading, error: profileError } = useSubscriberProfile();
+
+  // Real dashboard data
+  const { stats: dashboardStats, loading: statsLoading, error: statsError } = useDashboardStats();
+  const { orders: recentOrdersData, loading: ordersLoading, error: ordersError } = useOrders({}, 1, 5); // Get 5 recent orders
+  const { transactions: tokenTransactionsData, loading: transactionsLoading, error: transactionsError } = useTokenTransactions({}, 1, 5); // Get 5 recent transactions
+
+  // Helper function to get status color for orders
+  const getOrderStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'DELIVERED':
+        return 'text-emerald-400 border-emerald-400 bg-emerald-400/10';
+      case 'SHIPPED':
+      case 'OUT_FOR_DELIVERY':
+        return 'text-blue-400 border-blue-400 bg-blue-400/10';
+      case 'PROCESSING':
+      case 'CONFIRMED':
+      case 'PACKED':
+        return 'text-yellow-400 border-yellow-400 bg-yellow-400/10';
+      case 'CANCELLED':
+      case 'REFUNDED':
+        return 'text-red-400 border-red-400 bg-red-400/10';
+      default:
+        return 'text-gray-400 border-gray-400 bg-gray-400/10';
+    }
   };
 
-  // Mock token balance for Phase 1
-  const mockTokenBalance = 245.50;
+  // Format status text for display
+  const formatOrderStatus = (status: string) => {
+    return status.charAt(0) + status.slice(1).toLowerCase().replace('_', ' ');
+  };
 
-  // Enhanced mock data for Phase 2
-  const mockRecentOrders = [
-    {
-      id: '#ORD-12345',
-      date: '2025-09-20',
-      items: ['Premium Sativa (3.5g)', 'Blue Dream (1g)'],
-      status: 'Delivered',
-      total: 'R 450.00',
-      statusColor: 'text-emerald-400 border-emerald-400 bg-emerald-400/10'
-    },
-    {
-      id: '#ORD-12346',
-      date: '2025-09-18',
-      items: ['Indica Mix (7g)'],
-      status: 'Processing',
-      total: 'R 680.00',
-      statusColor: 'text-yellow-400 border-yellow-400 bg-yellow-400/10'
-    },
-    {
-      id: '#ORD-12347',
-      date: '2025-09-15',
-      items: ['CBD Oil (30ml)', 'Edibles Pack'],
-      status: 'Shipped',
-      total: 'R 320.00',
-      statusColor: 'text-blue-400 border-blue-400 bg-blue-400/10'
-    }
-  ];
+  // Helper function to format transaction type for display
+  const formatTransactionType = (type: string) => {
+    return type.charAt(0) + type.slice(1).toLowerCase();
+  };
 
-  const mockTokenTransactions = [
-    {
-      id: 'TXN-001',
-      type: 'purchase',
-      amount: -450.00,
-      description: 'Order #ORD-12345',
-      date: '2025-09-20',
-      balance: 245.50
-    },
-    {
-      id: 'TXN-002',
-      type: 'topup',
-      amount: +500.00,
-      description: 'Token Top-up',
-      date: '2025-09-19',
-      balance: 695.50
-    },
-    {
-      id: 'TXN-003',
-      type: 'purchase',
-      amount: -680.00,
-      description: 'Order #ORD-12346',
-      date: '2025-09-18',
-      balance: 195.50
-    }
-  ];
+  // Helper function to format date for display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-ZA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
-  // Extended mock data for Phase 3 - Orders Tab
-  const mockAllOrders = [
-    {
-      id: '#ORD-12345',
-      date: '2025-09-20',
-      status: 'Delivered',
-      statusColor: 'text-emerald-400 border-emerald-400 bg-emerald-400/10',
-      total: 450.00,
-      items: [
-        { name: 'Premium Sativa', variant: '3.5g', price: 250.00, quantity: 1 },
-        { name: 'Blue Dream', variant: '1g', price: 200.00, quantity: 1 }
-      ],
-      deliveryAddress: '123 Cape Town, South Africa',
-      orderDate: '2025-09-20T10:30:00Z',
-      deliveredDate: '2025-09-21T14:20:00Z',
-      trackingNumber: 'BB2025092001'
-    },
-    {
-      id: '#ORD-12346',
-      date: '2025-09-18',
-      status: 'Processing',
-      statusColor: 'text-yellow-400 border-yellow-400 bg-yellow-400/10',
-      total: 680.00,
-      items: [
-        { name: 'Indica Mix', variant: '7g', price: 680.00, quantity: 1 }
-      ],
-      deliveryAddress: '456 Johannesburg, South Africa',
-      orderDate: '2025-09-18T16:45:00Z',
-      estimatedDelivery: '2025-09-24T12:00:00Z',
-      trackingNumber: 'BB2025091801'
-    },
-    {
-      id: '#ORD-12347',
-      date: '2025-09-15',
-      status: 'Shipped',
-      statusColor: 'text-blue-400 border-blue-400 bg-blue-400/10',
-      total: 320.00,
-      items: [
-        { name: 'CBD Oil', variant: '30ml', price: 220.00, quantity: 1 },
-        { name: 'Edibles Pack', variant: '5 pieces', price: 100.00, quantity: 1 }
-      ],
-      deliveryAddress: '789 Durban, South Africa',
-      orderDate: '2025-09-15T09:15:00Z',
-      shippedDate: '2025-09-16T11:30:00Z',
-      estimatedDelivery: '2025-09-23T15:00:00Z',
-      trackingNumber: 'BB2025091501'
-    },
-    {
-      id: '#ORD-12344',
-      date: '2025-09-10',
-      status: 'Delivered',
-      statusColor: 'text-emerald-400 border-emerald-400 bg-emerald-400/10',
-      total: 180.00,
-      items: [
-        { name: 'Purple Haze', variant: '2g', price: 180.00, quantity: 1 }
-      ],
-      deliveryAddress: '123 Cape Town, South Africa',
-      orderDate: '2025-09-10T14:20:00Z',
-      deliveredDate: '2025-09-12T10:45:00Z',
-      trackingNumber: 'BB2025091001'
-    },
-    {
-      id: '#ORD-12343',
-      date: '2025-09-05',
-      status: 'Cancelled',
-      statusColor: 'text-red-400 border-red-400 bg-red-400/10',
-      total: 0.00,
-      items: [
-        { name: 'White Widow', variant: '3.5g', price: 270.00, quantity: 1 }
-      ],
-      deliveryAddress: '123 Cape Town, South Africa',
-      orderDate: '2025-09-05T11:00:00Z',
-      cancelledDate: '2025-09-05T11:30:00Z',
-      cancelReason: 'Out of stock',
-      trackingNumber: 'BB2025090501'
-    }
-  ];
-
+  // State declarations must come before they're used in hooks
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Use real orders data for the orders tab
+  const { orders: allOrdersData, loading: allOrdersLoading, error: allOrdersError } = useOrders(
+    {
+      status: selectedStatus === 'all' ? undefined : selectedStatus.toUpperCase(),
+      sortBy: 'createdAt',
+      sortOrder: 'desc'
+    },
+    1,
+    50 // Get more orders for the orders tab
+  );
 
   // Phase 4: Browse tab state management
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -220,6 +139,13 @@ export default function MarketplacePage() {
   // Products are now filtered by the API, so we use them directly
   const filteredProducts = apiProducts;
 
+  // Get featured products (first 3 products for featured section)
+  const { products: featuredProductsData, loading: featuredLoading, error: featuredError } = useProducts(
+    { inStock: true }, // Only featured in-stock products
+    1,
+    3 // Get only 3 for featured section
+  );
+
   // Phase 4: Cart functions using backend cart store
   const addToCart = async (product, quantity = 1) => {
     try {
@@ -234,12 +160,13 @@ export default function MarketplacePage() {
     }
   };
 
-  const filteredOrders = mockAllOrders.filter(order => {
-    const matchesStatus = selectedStatus === 'all' || order.status.toLowerCase() === selectedStatus.toLowerCase();
-    const matchesSearch = order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.items.some(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesStatus && matchesSearch;
-  });
+  // Filter orders based on search query (status filtering is handled by the API)
+  const filteredOrders = allOrdersData?.filter(order => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    return order.orderNumber.toLowerCase().includes(searchLower) ||
+           order.items.some(item => item.product.name.toLowerCase().includes(searchLower));
+  }) || [];
 
   const handleLogout = async () => {
     try {
@@ -288,7 +215,11 @@ export default function MarketplacePage() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm text-gray-300">
                 <User className="w-4 h-4" />
-                <span>{mockUser.firstName} {mockUser.lastName}</span>
+                <span>
+                  {profileLoading ? 'Loading...' :
+                   profileError ? 'Guest User' :
+                   subscriber ? `${subscriber.firstName || 'Unknown'} ${subscriber.lastName || 'User'}` : 'Guest User'}
+                </span>
               </div>
               <CartButton
                 variant="outline"
@@ -319,7 +250,9 @@ export default function MarketplacePage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-4xl font-bold mb-2 text-emerald-400">
-                  R {mockTokenBalance.toFixed(2)}
+                  R {profileLoading ? '0.00' :
+                      profileError ? '0.00' :
+                      subscriber ? subscriber.tokenBalance.toFixed(2) : '0.00'}
                 </div>
                 <p className="text-gray-400">
                   Ready to spend on premium products
@@ -366,35 +299,66 @@ export default function MarketplacePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {mockRecentOrders.map((order, index) => (
-                      <div key={order.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-emerald-400/20 rounded-full flex items-center justify-center">
-                            <ShoppingBag className="w-4 h-4 text-emerald-400" />
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <p className="font-medium text-sm text-white">{order.id}</p>
-                              <span className="text-xs text-gray-500">•</span>
-                              <span className="text-xs text-gray-400">{order.date}</span>
+                    {ordersLoading ? (
+                      // Loading state
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 animate-pulse">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-700 rounded-full"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 bg-gray-700 rounded w-24"></div>
+                              <div className="h-3 bg-gray-700 rounded w-32"></div>
                             </div>
-                            <p className="text-xs text-gray-400">
-                              {order.items.length} item{order.items.length > 1 ? 's' : ''} • {order.items[0]}
-                              {order.items.length > 1 && ` +${order.items.length - 1} more`}
-                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="h-4 bg-gray-700 rounded w-16"></div>
+                            <div className="h-6 bg-gray-700 rounded w-20"></div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-sm text-emerald-400 mb-1 whitespace-nowrap">{order.total}</p>
-                          <Badge variant="outline" className={order.statusColor}>
-                            {order.status}
-                          </Badge>
-                        </div>
+                      ))
+                    ) : ordersError ? (
+                      <div className="text-center py-4">
+                        <p className="text-red-400 text-sm">Failed to load recent orders</p>
                       </div>
-                    ))}
+                    ) : recentOrdersData && recentOrdersData.length > 0 ? (
+                      recentOrdersData.map((order) => (
+                        <div key={order.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-emerald-400/20 rounded-full flex items-center justify-center">
+                              <ShoppingBag className="w-4 h-4 text-emerald-400" />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium text-sm text-white">{order.orderNumber}</p>
+                                <span className="text-xs text-gray-500">•</span>
+                                <span className="text-xs text-gray-400">{formatDate(order.createdAt)}</span>
+                              </div>
+                              <p className="text-xs text-gray-400">
+                                {order.items.length} item{order.items.length > 1 ? 's' : ''} • {order.items[0]?.product.name}
+                                {order.items.length > 1 && ` +${order.items.length - 1} more`}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-sm text-emerald-400 mb-1 whitespace-nowrap">R {order.total.toFixed(2)}</p>
+                            <Badge variant="outline" className={getOrderStatusColor(order.status)}>
+                              {formatOrderStatus(order.status)}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-sm">No recent orders</p>
+                      </div>
+                    )}
 
                     <div className="text-center pt-4">
-                      <Button variant="ghost" className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10">
+                      <Button
+                        variant="ghost"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                        onClick={() => setActiveTab('orders')}
+                      >
                         View All Orders
                       </Button>
                     </div>
@@ -415,35 +379,58 @@ export default function MarketplacePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Total Orders</span>
-                      <span className="font-semibold text-emerald-400">12</span>
-                    </div>
-                    <Separator className="bg-gray-700" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Total Spent</span>
-                      <span className="font-semibold text-emerald-400">R 1,450.00</span>
-                    </div>
-                    <Separator className="bg-gray-700" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">This Month</span>
-                      <span className="font-semibold text-emerald-400">R 1,130.00</span>
-                    </div>
-                    <Separator className="bg-gray-700" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Avg. Order Value</span>
-                      <span className="font-semibold text-emerald-400">R 483.33</span>
-                    </div>
-                    <Separator className="bg-gray-700" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Favorite Category</span>
-                      <Badge variant="outline" className="text-emerald-400 border-emerald-400">Flower</Badge>
-                    </div>
-                    <Separator className="bg-gray-700" />
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400">Member Since</span>
-                      <span className="text-sm text-gray-300">Aug 2025</span>
-                    </div>
+                    {statsLoading ? (
+                      // Loading state
+                      Array.from({ length: 6 }).map((_, index) => (
+                        <div key={index}>
+                          <div className="flex items-center justify-between">
+                            <div className="h-4 bg-gray-700 rounded w-24 animate-pulse"></div>
+                            <div className="h-4 bg-gray-700 rounded w-16 animate-pulse"></div>
+                          </div>
+                          {index < 5 && <Separator className="bg-gray-700" />}
+                        </div>
+                      ))
+                    ) : statsError ? (
+                      <div className="text-center py-4">
+                        <p className="text-red-400 text-sm">Failed to load stats</p>
+                      </div>
+                    ) : dashboardStats ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Total Orders</span>
+                          <span className="font-semibold text-emerald-400">{dashboardStats.totalOrders}</span>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Total Spent</span>
+                          <span className="font-semibold text-emerald-400">R {(dashboardStats.totalSpent || 0).toFixed(2)}</span>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">This Month</span>
+                          <span className="font-semibold text-emerald-400">R {(dashboardStats.thisMonthSpent || 0).toFixed(2)}</span>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Avg. Order Value</span>
+                          <span className="font-semibold text-emerald-400">R {(dashboardStats.averageOrderValue || 0).toFixed(2)}</span>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Favorite Category</span>
+                          <Badge variant="outline" className="text-emerald-400 border-emerald-400">{dashboardStats.favoriteCategory}</Badge>
+                        </div>
+                        <Separator className="bg-gray-700" />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400">Member Since</span>
+                          <span className="text-sm text-gray-300">{dashboardStats.memberSince}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-sm">No stats available</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -461,40 +448,76 @@ export default function MarketplacePage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockTokenTransactions.map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                            transaction.type === 'purchase'
-                              ? 'bg-red-400/20'
-                              : 'bg-emerald-400/20'
-                          }`}>
-                            {transaction.type === 'purchase' ? (
-                              <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />
-                            ) : (
-                              <TrendingUp className="w-4 h-4 text-emerald-400" />
-                            )}
+                    {transactionsLoading ? (
+                      // Loading state
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700 animate-pulse">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-700 rounded-full"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 bg-gray-700 rounded w-32"></div>
+                              <div className="h-3 bg-gray-700 rounded w-20"></div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-sm text-white">{transaction.description}</p>
-                            <p className="text-xs text-gray-400">{transaction.date}</p>
+                          <div className="space-y-2 text-right">
+                            <div className="h-4 bg-gray-700 rounded w-16"></div>
+                            <div className="h-3 bg-gray-700 rounded w-20"></div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className={`font-semibold text-sm whitespace-nowrap ${
-                            transaction.amount > 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`}>
-                            {transaction.amount > 0 ? '+' : ''}R {Math.abs(transaction.amount).toFixed(2)}
-                          </p>
-                          <p className="text-xs text-gray-500 whitespace-nowrap">
-                            Bal: R {transaction.balance.toFixed(2)}
-                          </p>
-                        </div>
+                      ))
+                    ) : transactionsError ? (
+                      <div className="text-center py-4">
+                        <p className="text-red-400 text-sm">Failed to load transactions</p>
                       </div>
-                    ))}
+                    ) : tokenTransactionsData && tokenTransactionsData.length > 0 ? (
+                      tokenTransactionsData.map((transaction) => (
+                        <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                              transaction.amount < 0
+                                ? 'bg-red-400/20'
+                                : 'bg-emerald-400/20'
+                            }`}>
+                              {transaction.amount < 0 ? (
+                                <TrendingUp className="w-4 h-4 text-red-400 rotate-180" />
+                              ) : (
+                                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm text-white">
+                                {transaction.description || `${formatTransactionType(transaction.type)} Transaction`}
+                              </p>
+                              <p className="text-xs text-gray-400">{formatDate(transaction.createdAt)}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-semibold text-sm whitespace-nowrap ${
+                              transaction.amount > 0 ? 'text-emerald-400' : 'text-red-400'
+                            }`}>
+                              {transaction.amount > 0 ? '+' : ''}R {Math.abs(transaction.amount).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500 whitespace-nowrap">
+                              Bal: R {transaction.balance.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-sm">No transactions yet</p>
+                      </div>
+                    )}
 
                     <div className="text-center pt-4">
-                      <Button variant="ghost" className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10">
+                      <Button
+                        variant="ghost"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                        onClick={() => {
+                          // TODO: Implement transaction history modal or page
+                          toast.info('Transaction history coming soon!');
+                        }}
+                      >
                         View All Transactions
                       </Button>
                     </div>
@@ -518,59 +541,90 @@ export default function MarketplacePage() {
                 <div className="space-y-4">
                   {/* Featured Product Cards */}
                   <div className="grid grid-cols-1 gap-4">
-                    <div className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-white text-sm">Premium Purple Haze</h4>
-                          <p className="text-xs text-gray-400">Sativa • 22% THC • 3.5g</p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Badge variant="outline" className="text-emerald-400 border-emerald-400 text-xs">
-                              Top Seller
-                            </Badge>
-                            <span className="text-emerald-400 font-semibold text-sm whitespace-nowrap">R 180.00</span>
+                    {featuredLoading ? (
+                      // Loading state
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="p-3 bg-gray-800 rounded-lg border border-gray-700 animate-pulse">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="h-4 bg-gray-700 rounded w-32 mb-2"></div>
+                              <div className="h-3 bg-gray-700 rounded w-24 mb-2"></div>
+                              <div className="flex items-center space-x-2">
+                                <div className="h-5 bg-gray-700 rounded w-16"></div>
+                                <div className="h-4 bg-gray-700 rounded w-12"></div>
+                              </div>
+                            </div>
+                            <div className="w-12 h-12 bg-gray-700 rounded-lg"></div>
                           </div>
                         </div>
-                        <div className="w-12 h-12 bg-emerald-400/10 rounded-lg flex items-center justify-center">
-                          <span className="text-emerald-400 text-lg">🌿</span>
-                        </div>
+                      ))
+                    ) : featuredError ? (
+                      <div className="text-center py-4">
+                        <p className="text-red-400 text-sm">Failed to load featured products</p>
                       </div>
-                    </div>
+                    ) : featuredProductsData && featuredProductsData.length > 0 ? (
+                      featuredProductsData.map((product) => {
+                        const categoryIcon = {
+                          FLOWER: '🌿',
+                          CONCENTRATES: '🧪',
+                          EDIBLES: '🍪',
+                          WELLNESS: '💊',
+                          ACCESSORIES: '🔧',
+                          SEEDS: '🌱',
+                          CLONES: '🌿',
+                          TOPICALS: '🧴',
+                          TINCTURES: '💧',
+                          VAPES: '💨'
+                        };
 
-                    <div className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-white text-sm">Blue Dream Indica</h4>
-                          <p className="text-xs text-gray-400">Indica • 18% THC • 1g</p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Badge variant="outline" className="text-blue-400 border-blue-400 text-xs">
-                              Premium
-                            </Badge>
-                            <span className="text-emerald-400 font-semibold text-sm whitespace-nowrap">R 85.00</span>
-                          </div>
-                        </div>
-                        <div className="w-12 h-12 bg-blue-400/10 rounded-lg flex items-center justify-center">
-                          <span className="text-blue-400 text-lg">💙</span>
-                        </div>
-                      </div>
-                    </div>
+                        const categoryColor = {
+                          FLOWER: 'text-emerald-400 border-emerald-400',
+                          CONCENTRATES: 'text-blue-400 border-blue-400',
+                          EDIBLES: 'text-orange-400 border-orange-400',
+                          WELLNESS: 'text-purple-400 border-purple-400',
+                          ACCESSORIES: 'text-gray-400 border-gray-400',
+                          SEEDS: 'text-green-400 border-green-400',
+                          CLONES: 'text-lime-400 border-lime-400',
+                          TOPICALS: 'text-pink-400 border-pink-400',
+                          TINCTURES: 'text-cyan-400 border-cyan-400',
+                          VAPES: 'text-indigo-400 border-indigo-400'
+                        };
 
-                    <div className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-white text-sm">CBD Relief Oil</h4>
-                          <p className="text-xs text-gray-400">CBD • 20% CBD • 30ml</p>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Badge variant="outline" className="text-purple-400 border-purple-400 text-xs">
-                              Wellness
-                            </Badge>
-                            <span className="text-emerald-400 font-semibold text-sm whitespace-nowrap">R 220.00</span>
+                        return (
+                          <div
+                            key={product.id}
+                            className="p-3 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors cursor-pointer"
+                            onClick={() => setActiveTab('browse')}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-white text-sm">{product.name}</h4>
+                                <p className="text-xs text-gray-400">
+                                  {product.strain ? `${product.strain} • ` : ''}
+                                  {product.thcContent ? `${product.thcContent}% THC • ` : ''}
+                                  {product.weight ? `${product.weight}g` : 'Various sizes'}
+                                </p>
+                                <div className="flex items-center space-x-2 mt-2">
+                                  <Badge variant="outline" className={`text-xs ${categoryColor[product.category] || 'text-gray-400 border-gray-400'}`}>
+                                    {product.category.toLowerCase().replace('_', ' ')}
+                                  </Badge>
+                                  <span className="text-emerald-400 font-semibold text-sm whitespace-nowrap">R {product.price.toFixed(2)}</span>
+                                </div>
+                              </div>
+                              <div className="w-12 h-12 bg-emerald-400/10 rounded-lg flex items-center justify-center">
+                                <span className="text-emerald-400 text-lg">
+                                  {categoryIcon[product.category] || '🌿'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="w-12 h-12 bg-purple-400/10 rounded-lg flex items-center justify-center">
-                          <span className="text-purple-400 text-lg">🧪</span>
-                        </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-gray-400 text-sm">No featured products available</p>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="text-center pt-4">
@@ -628,65 +682,128 @@ export default function MarketplacePage() {
 
                 {/* Order List */}
                 <div className="space-y-4">
-                  {filteredOrders.map((order) => (
-                    <div key={order.id} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="flex items-center gap-2">
-                              {order.status === 'Delivered' && <CheckCircle className="w-5 h-5 text-emerald-400" />}
-                              {order.status === 'Shipped' && <Truck className="w-5 h-5 text-blue-400" />}
-                              {order.status === 'Processing' && <Clock className="w-5 h-5 text-yellow-400" />}
-                              {order.status === 'Cancelled' && <XCircle className="w-5 h-5 text-red-400" />}
-                              <h3 className="font-semibold text-white">{order.id}</h3>
+                  {allOrdersLoading ? (
+                    // Loading state
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <div key={index} className="p-4 bg-gray-800 rounded-lg border border-gray-700 animate-pulse">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-5 h-5 bg-gray-700 rounded"></div>
+                              <div className="h-5 bg-gray-700 rounded w-32"></div>
+                              <div className="h-6 bg-gray-700 rounded w-20"></div>
                             </div>
-                            <Badge variant="outline" className={order.statusColor}>
-                              {order.status}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-400">Order Date</p>
-                              <p className="text-white">{order.date}</p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Items</p>
-                              <p className="text-white">
-                                {order.items.length} item{order.items.length > 1 ? 's' : ''} • {order.items[0].name}
-                                {order.items.length > 1 && ` +${order.items.length - 1} more`}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-gray-400">Total</p>
-                              <p className="text-emerald-400 font-semibold whitespace-nowrap">
-                                {order.status === 'Cancelled' ? 'R 0.00' : `R ${order.total.toFixed(2)}`}
-                              </p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="space-y-2">
+                                <div className="h-4 bg-gray-700 rounded w-20"></div>
+                                <div className="h-4 bg-gray-700 rounded w-24"></div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-gray-700 rounded w-12"></div>
+                                <div className="h-4 bg-gray-700 rounded w-36"></div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="h-4 bg-gray-700 rounded w-12"></div>
+                                <div className="h-4 bg-gray-700 rounded w-16"></div>
+                              </div>
                             </div>
                           </div>
-
-                          {order.trackingNumber && (
-                            <div className="mt-3 p-2 bg-gray-750 rounded border border-gray-600">
-                              <p className="text-xs text-gray-400">Tracking: <span className="text-emerald-400 font-mono">{order.trackingNumber}</span></p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <Button variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </Button>
-                          {order.status === 'Delivered' && (
-                            <Button variant="outline" size="sm" className="border-emerald-400 text-emerald-400 hover:bg-emerald-400 hover:text-black">
-                              <RotateCcw className="w-4 h-4 mr-2" />
-                              Reorder
-                            </Button>
-                          )}
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="h-8 bg-gray-700 rounded w-24"></div>
+                            <div className="h-8 bg-gray-700 rounded w-20"></div>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : allOrdersError ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-400 mb-4">Failed to load orders</p>
+                      <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                        className="border-red-400 text-red-400 hover:bg-red-400 hover:text-black"
+                      >
+                        Retry
+                      </Button>
                     </div>
-                  ))}
+                  ) : filteredOrders.length > 0 ? (
+                    filteredOrders.map((order) => (
+                      <div key={order.id} className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-emerald-400/50 transition-colors">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="flex items-center gap-2">
+                                {order.status === 'DELIVERED' && <CheckCircle className="w-5 h-5 text-emerald-400" />}
+                                {(order.status === 'SHIPPED' || order.status === 'OUT_FOR_DELIVERY') && <Truck className="w-5 h-5 text-blue-400" />}
+                                {(order.status === 'PROCESSING' || order.status === 'CONFIRMED' || order.status === 'PACKED') && <Clock className="w-5 h-5 text-yellow-400" />}
+                                {(order.status === 'CANCELLED' || order.status === 'REFUNDED') && <XCircle className="w-5 h-5 text-red-400" />}
+                                <h3 className="font-semibold text-white">{order.orderNumber}</h3>
+                              </div>
+                              <Badge variant="outline" className={getOrderStatusColor(order.status)}>
+                                {formatOrderStatus(order.status)}
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <p className="text-gray-400">Order Date</p>
+                                <p className="text-white">{formatDate(order.createdAt)}</p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400">Items</p>
+                                <p className="text-white">
+                                  {order.items.length} item{order.items.length > 1 ? 's' : ''} • {order.items[0]?.product.name}
+                                  {order.items.length > 1 && ` +${order.items.length - 1} more`}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-gray-400">Total</p>
+                                <p className="text-emerald-400 font-semibold whitespace-nowrap">
+                                  {(order.status === 'CANCELLED' || order.status === 'REFUNDED') ? 'R 0.00' : `R ${order.total.toFixed(2)}`}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Add tracking info if available - this would come from delivery integration */}
+                            {order.status === 'SHIPPED' && (
+                              <div className="mt-3 p-2 bg-gray-750 rounded border border-gray-600">
+                                <p className="text-xs text-gray-400">Tracking: <span className="text-emerald-400 font-mono">BB{order.orderNumber.replace('ORD-', '')}</span></p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                              onClick={() => {
+                                // TODO: Implement order details modal/page
+                                toast.info('Order details coming soon!');
+                              }}
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View Details
+                            </Button>
+                            {order.status === 'DELIVERED' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-emerald-400 text-emerald-400 hover:bg-emerald-400 hover:text-black"
+                                onClick={() => {
+                                  // TODO: Implement reorder functionality
+                                  toast.info('Reorder functionality coming soon!');
+                                }}
+                              >
+                                <RotateCcw className="w-4 h-4 mr-2" />
+                                Reorder
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : null}
 
                   {filteredOrders.length === 0 && (
                     <div className="text-center py-12">
