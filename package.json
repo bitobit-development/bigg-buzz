@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npx kill-port 3000 && next dev --turbopack --port 3000",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
@@ -16,10 +16,13 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:prod": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:prod": "NODE_ENV=production tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "postbuild": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
