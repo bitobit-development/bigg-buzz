@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
       email,
     })
 
-    // If not a test user, check for existing users in database
+    // If not a test user, check for existing subscribers in database
     if (!testUser) {
-      const existingUser = await prisma.user.findFirst({
+      const existingSubscriber = await prisma.subscriber.findFirst({
         where: {
           OR: [
             { saId: await encrypt(saId) },
@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (existingUser) {
+      if (existingSubscriber) {
         // Determine which field already exists
         let conflictField = 'account'
-        if (existingUser.phone === normalizedPhone) {
+        if (existingSubscriber.phone === normalizedPhone) {
           conflictField = 'phone number'
-        } else if (existingUser.email === email) {
+        } else if (existingSubscriber.email === email) {
           conflictField = 'email address'
         } else {
           conflictField = 'SA ID number'
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create user with encrypted SA ID (terms will be updated after verification)
-    const newUser = await prisma.user.create({
+    // Create subscriber with encrypted SA ID (terms will be updated after verification)
+    const newSubscriber = await prisma.subscriber.create({
       data: {
         saId: await encrypt(saId),
         phone: normalizedPhone,
@@ -131,7 +131,6 @@ export async function POST(request: NextRequest) {
         lastName,
         email,
         dateOfBirth: saIdInfo.dateOfBirth,
-        role: 'CUSTOMER',
         isActive: false, // Will be activated after OTP verification
         marketingConsent,
         marketingConsentDate: marketingConsent ? new Date() : null,
@@ -143,11 +142,11 @@ export async function POST(request: NextRequest) {
     })
 
     // Send OTP for phone verification
-    const otpSent = await sendOTP(normalizedPhone, channel as 'sms' | 'whatsapp', newUser.id)
+    const otpSent = await sendOTP(normalizedPhone, channel as 'sms' | 'whatsapp', newSubscriber.id, true)
 
     if (!otpSent) {
-      // Rollback user creation if OTP fails
-      await prisma.user.delete({ where: { id: newUser.id } })
+      // Rollback subscriber creation if OTP fails
+      await prisma.subscriber.delete({ where: { id: newSubscriber.id } })
       return NextResponse.json(
         { error: 'Failed to send verification code' },
         { status: 500 }
@@ -157,9 +156,9 @@ export async function POST(request: NextRequest) {
     // Log compliance event
     await prisma.complianceEvent.create({
       data: {
-        userId: newUser.id,
+        subscriberId: newSubscriber.id,
         eventType: 'USER_REGISTRATION',
-        description: 'New user registered',
+        description: 'New subscriber registered',
         metadata: JSON.stringify({
           age: saIdInfo.age,
           gender: saIdInfo.gender,
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Registration successful. Please verify your phone number.',
-      userId: newUser.id,
+      userId: newSubscriber.id,
       requiresPhoneVerification: true,
     })
 

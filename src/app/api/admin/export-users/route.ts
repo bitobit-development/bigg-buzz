@@ -56,9 +56,7 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (role) {
-      whereClause.role = role
-    }
+    // Note: Subscribers don't have roles, so role filtering is removed
 
     if (verified === 'true') {
       whereClause.phoneVerified = { not: null }
@@ -66,8 +64,8 @@ export async function GET(request: NextRequest) {
       whereClause.phoneVerified = null
     }
 
-    // Get users with optional compliance events
-    const users = await prisma.user.findMany({
+    // Get subscribers with optional compliance events
+    const users = await prisma.subscriber.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -75,7 +73,6 @@ export async function GET(request: NextRequest) {
         lastName: true,
         email: true,
         phone: true,
-        role: true,
         isActive: true,
         phoneVerified: true,
         emailVerified: true,

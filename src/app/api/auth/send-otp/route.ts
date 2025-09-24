@@ -30,27 +30,27 @@ export async function POST(request: NextRequest) {
     // Check if this is a test user
     const isTestUser = normalizedPhone === normalizePhoneNumber(process.env.TEST_USER_PHONE || '')
 
-    // Check if user exists (skip for test users)
-    let user = null
+    // Check if subscriber exists (skip for test users)
+    let subscriber = null
     if (!isTestUser) {
-      user = await prisma.user.findUnique({
+      subscriber = await prisma.subscriber.findUnique({
         where: { phone: normalizedPhone },
       })
 
-      if (!user) {
+      if (!subscriber) {
         return NextResponse.json(
-          { error: 'User not found with this phone number' },
+          { error: 'Subscriber not found with this phone number' },
           { status: 404 }
         )
       }
     }
 
-    // For registration flow, allow sending OTP to inactive users (newly registered)
+    // For registration flow, allow sending OTP to inactive subscribers (newly registered)
     // For login flow, check if account is active (this would be a separate endpoint)
-    if (user && !user.isActive && !user.phoneVerified) {
-      // User is in registration flow - this is allowed
-    } else if (user && !user.isActive && user.phoneVerified) {
-      // User was previously active but account is now deactivated
+    if (subscriber && !subscriber.isActive && !subscriber.phoneVerified) {
+      // Subscriber is in registration flow - this is allowed
+    } else if (subscriber && !subscriber.isActive && subscriber.phoneVerified) {
+      // Subscriber was previously active but account is now deactivated
       return NextResponse.json(
         { error: 'Account is inactive. Please contact support.' },
         { status: 403 }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send OTP (use test userId for test users)
-    const userId = isTestUser ? `test-user-${Date.now()}` : user?.id
+    const userId = isTestUser ? `test-user-${Date.now()}` : subscriber?.id
     const otpSent = await sendOTP(normalizedPhone, channel as 'sms' | 'whatsapp', userId)
 
     if (!otpSent) {
@@ -69,16 +69,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Log compliance event (skip for test users)
-    if (user && !isTestUser) {
+    if (subscriber && !isTestUser) {
       await prisma.complianceEvent.create({
         data: {
-          userId: user.id,
+          subscriberId: subscriber.id,
           eventType: 'LOGIN_ATTEMPT',
           description: 'OTP requested for login',
-          metadata: {
+          metadata: JSON.stringify({
             phone: phone.substring(0, 3) + '***' + phone.substring(phone.length - 2),
             method: 'OTP',
-          },
+          }),
           ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
           userAgent: request.headers.get('user-agent'),
         },

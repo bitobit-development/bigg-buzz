@@ -22,6 +22,7 @@ import { RegistrationFunnel } from '@/components/admin/registration-funnel'
 import { GeographicDistribution } from '@/components/admin/geographic-distribution'
 import { ActivityTrendsChart } from '@/components/admin/activity-trends-chart'
 import { RoleDistributionChart } from '@/components/admin/role-distribution-chart'
+import { AutoRefreshIndicator } from '@/components/admin/auto-refresh-indicator'
 
 interface DashboardStats {
   totalUsers: number
@@ -70,18 +71,25 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [fetchError, setFetchError] = useState<Error | null>(null)
 
   const fetchStats = async () => {
     try {
       setLoading(true)
+      setFetchError(null)
       const response = await fetch('/api/admin/dashboard-stats')
       if (response.ok) {
         const data = await response.json()
         setStats(data)
         setLastUpdated(new Date())
+      } else {
+        const error = new Error(`Failed to fetch dashboard stats: ${response.status}`)
+        setFetchError(error)
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error)
+      const err = error instanceof Error ? error : new Error('Unknown error occurred')
+      setFetchError(err)
     } finally {
       setLoading(false)
     }
@@ -196,16 +204,15 @@ export default function AdminDashboard() {
             </p>
           )}
         </div>
-        <Button
-          onClick={fetchStats}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="border-bigg-neon-green/20 hover:border-bigg-neon-green/40"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <AutoRefreshIndicator
+          onRefresh={fetchStats}
+          isLoading={loading}
+          lastRefresh={lastUpdated}
+          error={fetchError}
+          defaultInterval={300000}
+          showProgress={true}
+          showLastRefresh={true}
+        />
       </motion.div>
 
       {/* Stats Cards */}

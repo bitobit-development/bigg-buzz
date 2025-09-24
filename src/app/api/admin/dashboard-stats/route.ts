@@ -13,39 +13,39 @@ export async function GET(request: NextRequest) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const startOfYear = new Date(now.getFullYear(), 0, 1)
 
-    // Get total user count
-    const totalUsers = await prisma.user.count()
+    // Get total subscriber count
+    const totalUsers = await prisma.subscriber.count()
 
-    // Get verified users count
-    const verifiedUsers = await prisma.user.count({
+    // Get verified subscribers count
+    const verifiedUsers = await prisma.subscriber.count({
       where: {
         phoneVerified: { not: null }
       }
     })
 
     // Get daily signups
-    const dailySignups = await prisma.user.count({
+    const dailySignups = await prisma.subscriber.count({
       where: {
         createdAt: { gte: startOfToday }
       }
     })
 
     // Get weekly signups
-    const weeklySignups = await prisma.user.count({
+    const weeklySignups = await prisma.subscriber.count({
       where: {
         createdAt: { gte: startOfWeek }
       }
     })
 
     // Get monthly signups
-    const monthlySignups = await prisma.user.count({
+    const monthlySignups = await prisma.subscriber.count({
       where: {
         createdAt: { gte: startOfMonth }
       }
     })
 
     // Get registration completion rates
-    const registrationFunnel = await prisma.user.groupBy({
+    const registrationFunnel = await prisma.subscriber.groupBy({
       by: ['phoneVerified', 'termsAccepted'],
       _count: true,
       where: {
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get recent registrations
-    const recentRegistrations = await prisma.user.findMany({
+    const recentRegistrations = await prisma.subscriber.findMany({
       take: 10,
       orderBy: { createdAt: 'desc' },
       select: {
@@ -65,16 +65,12 @@ export async function GET(request: NextRequest) {
         phone: true,
         phoneVerified: true,
         termsAccepted: true,
-        createdAt: true,
-        role: true
+        createdAt: true
       }
     })
 
-    // Get user role distribution
-    const roleDistribution = await prisma.user.groupBy({
-      by: ['role'],
-      _count: true
-    })
+    // Note: Subscribers don't have roles, so role distribution is not applicable
+    const roleDistribution = []
 
     // Get daily signup trend for the last 30 days
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
@@ -82,7 +78,7 @@ export async function GET(request: NextRequest) {
       SELECT
         DATE(createdAt) as date,
         COUNT(*) as count
-      FROM users
+      FROM subscribers
       WHERE createdAt >= ${thirtyDaysAgo}
       GROUP BY DATE(createdAt)
       ORDER BY date ASC
@@ -105,7 +101,7 @@ export async function GET(request: NextRequest) {
           ELSE 'Other Regions'
         END as region,
         COUNT(*) as count
-      FROM users
+      FROM subscribers
       WHERE phone IS NOT NULL
       GROUP BY region
       ORDER BY count DESC
@@ -117,7 +113,7 @@ export async function GET(request: NextRequest) {
         DATE(createdAt) as date,
         COUNT(*) as new_users,
         SUM(CASE WHEN phoneVerified IS NOT NULL THEN 1 ELSE 0 END) as verified_users
-      FROM users
+      FROM subscribers
       WHERE createdAt >= ${startOfWeek}
       GROUP BY DATE(createdAt)
       ORDER BY date ASC
@@ -149,10 +145,7 @@ export async function GET(request: NextRequest) {
         completionRate: Math.round(completionRate * 100) / 100
       },
       recentRegistrations,
-      roleDistribution: roleDistribution.map(item => ({
-        role: item.role,
-        count: item._count
-      })),
+      roleDistribution: [],
       dailyTrend: dailyTrend.map(item => ({
         date: item.date,
         count: Number(item.count)

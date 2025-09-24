@@ -207,7 +207,7 @@ export function DashboardChart({ data }: DashboardChartProps) {
                   stroke="#ff8c00"
                   strokeDasharray="4 4"
                   strokeWidth={2}
-                  label={{ value: `Avg: ${stats.average}`, position: "topRight", fill: "#ff8c00", fontSize: 12 }}
+                  label={{ value: `Avg: ${stats.average}`, position: "top", fill: "#ff8c00", fontSize: 12 }}
                 />
               )}
               <Area
@@ -255,7 +255,7 @@ export function DashboardChart({ data }: DashboardChartProps) {
                   stroke="#ff8c00"
                   strokeDasharray="4 4"
                   strokeWidth={2}
-                  label={{ value: `Avg: ${stats.average}`, position: "topRight", fill: "#ff8c00", fontSize: 12 }}
+                  label={{ value: `Avg: ${stats.average}`, position: "top", fill: "#ff8c00", fontSize: 12 }}
                 />
               )}
               <Line

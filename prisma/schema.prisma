@@ -19,7 +19,7 @@ model User {
   firstName           String?
   lastName            String?
   dateOfBirth         DateTime?
-  role                UserRole @default(CUSTOMER)
+  role                UserRole
   isActive            Boolean  @default(true)
   marketingConsent    Boolean  @default(false)
   marketingConsentDate DateTime?
@@ -35,6 +35,38 @@ model User {
   complianceEvents ComplianceEvent[]
 
   @@map("users")
+}
+
+// Subscriber model for platform clients/customers
+model Subscriber {
+  id                  String   @id @default(cuid())
+  email               String?  @unique
+  emailVerified       DateTime?
+  phone               String?  @unique
+  phoneVerified       DateTime?
+  saId                String?  @unique // Encrypted SA ID
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  isActive            Boolean  @default(true)
+  marketingConsent    Boolean  @default(false)
+  marketingConsentDate DateTime?
+  termsAccepted       Boolean  @default(false)
+  termsAcceptedDate   DateTime?
+  privacyAccepted     Boolean  @default(false)
+  privacyAcceptedDate DateTime?
+  tokenBalance        Float    @default(0) // Token balance for purchases
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tokens           SubscriberToken[]
+  complianceEvents ComplianceEvent[]
+  cart             Cart?
+  orders           Order[]
+  tokenTransactions TokenTransaction[]
+
+  @@map("subscribers")
 }
 
 enum UserRole {
@@ -59,6 +91,21 @@ model UserToken {
   @@map("user_tokens")
 }
 
+// Authentication Tokens for Subscribers
+model SubscriberToken {
+  id        String    @id @default(cuid())
+  subscriberId String
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@map("subscriber_tokens")
+}
+
 enum TokenType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
@@ -74,6 +121,7 @@ enum TokenType {
 model ComplianceEvent {
   id          String              @id @default(cuid())
   userId      String?
+  subscriberId String?
   eventType   ComplianceEventType
   description String
   metadata    String?             // JSON as text for SQLite
@@ -82,8 +130,34 @@ model ComplianceEvent {
   createdAt   DateTime            @default(now())
 
   user User? @relation(fields: [userId], references: [id])
+  subscriber Subscriber? @relation(fields: [subscriberId], references: [id])
 
   @@map("compliance_events")
+}
+
+// Pending Admin Registrations for OTP verification workflow
+model PendingAdminRegistration {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  saId            String
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  termsAccepted   Boolean   @default(true)
+  marketingConsent Boolean  @default(false)
+  adminUserId     String    // ID of admin who initiated registration
+  otpSent         Boolean   @default(false)
+  otpVerified     Boolean   @default(false)
+  otpAttempts     Int       @default(0)
+  lastOtpSentAt   DateTime?
+  otpVerifiedAt   DateTime?
+  expiresAt       DateTime  // When this pending registration expires
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("pending_admin_registrations")
 }
 
 enum ComplianceEventType {
@@ -98,4 +172,241 @@ enum ComplianceEventType {
   DATA_MODIFICATION
   LOGIN_ATTEMPT
   SECURITY_ALERT
+}
+
+// ============================================================================
+// CART & CHECKOUT SYSTEM MODELS
+// ============================================================================
+
+// Vendor model for product suppliers
+model Vendor {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  phone         String?
+  address       String?
+  isActive      Boolean   @default(true)
+  licenseNumber String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  products      Product[]
+
+  @@map("vendors")
+}
+
+// Product model for cannabis marketplace
+model Product {
+  id            String          @id @default(cuid())
+  name          String
+  description   String
+  price         Float
+  category      ProductCategory
+  strain        StrainType?
+  thcContent    Float?          // Percentage 0-100
+  cbdContent    Float?          // Percentage 0-100
+  weight        Float?          // In grams
+  inStock       Boolean         @default(true)
+  stockQuantity Int             @default(0)
+  images        String          // JSON array as text for SQLite
+  vendorId      String
+  sku           String          @unique
+  compliance    String?         // Compliance data as JSON text
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  // Relations
+  vendor        Vendor          @relation(fields: [vendorId], references: [id])
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  // Indexes for performance
+  @@index([inStock, stockQuantity])
+  @@index([category, thcContent])
+  @@index([vendorId])
+  @@map("products")
+}
+
+enum ProductCategory {
+  FLOWER
+  CONCENTRATES
+  EDIBLES
+  ACCESSORIES
+  WELLNESS
+  SEEDS
+  CLONES
+  TOPICALS
+  TINCTURES
+  VAPES
+}
+
+enum StrainType {
+  INDICA
+  SATIVA
+  HYBRID
+}
+
+// Cart model for user shopping cart
+model Cart {
+  id              String     @id @default(cuid())
+  subscriberId    String     @unique
+  lastActivityAt  DateTime   @default(now()) @updatedAt
+  items           CartItem[]
+  createdAt       DateTime   @default(now())
+
+  // Relations
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([lastActivityAt])
+  @@index([subscriberId])
+  @@map("carts")
+}
+
+// Cart item model for individual cart items
+model CartItem {
+  id          String    @id @default(cuid())
+  cartId      String
+  productId   String
+  quantity    Int
+  priceAtAdd  Float     // Store price when added to cart
+  variant     String?   // Store product variants as JSON text
+  addedAt     DateTime  @default(now())
+
+  // Relations
+  cart        Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product     Product   @relation(fields: [productId], references: [id])
+
+  // Constraints and indexes
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+// Order model for order management
+model Order {
+  id              String               @id @default(cuid())
+  orderNumber     String               @unique
+  subscriberId    String
+  status          OrderStatus          @default(PENDING)
+  total           Float
+  subtotal        Float
+  tax             Float                @default(0)
+  deliveryAddress String               // Store address as JSON text
+  deliveryMethod  DeliveryMethod       @default(STANDARD)
+  estimatedDelivery DateTime?
+  actualDelivery  DateTime?
+  notes           String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  subscriber      Subscriber           @relation(fields: [subscriberId], references: [id])
+  items           OrderItem[]
+  tokenTransactions TokenTransaction[]
+  statusHistory   OrderStatusHistory[]
+
+  // Indexes
+  @@index([orderNumber])
+  @@index([subscriberId, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+// Order item model for individual order items
+model OrderItem {
+  id            String  @id @default(cuid())
+  orderId       String
+  productId     String
+  quantity      Int
+  priceAtOrder  Float   // Store price at time of order
+  variant       String? // Store selected variant as JSON text
+  compliance    String? // Cannabis compliance data as JSON text
+
+  // Relations
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product       Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+// Order status history for audit trail
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  notes     String?
+  createdAt DateTime    @default(now())
+  createdBy String?     // Admin user who changed status
+
+  // Relations
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  PACKED
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum DeliveryMethod {
+  STANDARD
+  EXPRESS
+  PICKUP
+  DRONE
+}
+
+// Token transaction model for payment processing
+model TokenTransaction {
+  id           String                @id @default(cuid())
+  subscriberId String
+  orderId      String?
+  type         TokenTransactionType
+  amount       Float                 // Positive for credits, negative for debits
+  balance      Float                 // Balance after transaction
+  reference    String?               // External reference (payment gateway, etc.)
+  description  String?
+  metadata     String?               // Additional transaction data as JSON text
+  createdAt    DateTime              @default(now())
+  processedAt  DateTime?             // When transaction was processed
+  status       TransactionStatus     @default(PENDING)
+
+  // Relations
+  subscriber   Subscriber            @relation(fields: [subscriberId], references: [id])
+  order        Order?                @relation(fields: [orderId], references: [id])
+
+  // Indexes
+  @@index([subscriberId, createdAt])
+  @@index([orderId])
+  @@index([type, status])
+  @@map("token_transactions")
+}
+
+enum TokenTransactionType {
+  PURCHASE
+  REFUND
+  DEPOSIT
+  WITHDRAWAL
+  BONUS
+  PENALTY
+  ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
 }

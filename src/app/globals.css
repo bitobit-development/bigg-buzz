@@ -231,6 +231,11 @@
     background-size: 200% 100%;
     animation: shimmer 2s ease-in-out infinite;
   }
+
+  /* Enhanced shimmer for skeleton components */
+  .animate-shimmer {
+    animation: shimmer 2s linear infinite;
+  }
 }
 
 @keyframes chrome-shine {

@@ -22,17 +22,21 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { NotificationCenter } from './notification-center'
+import { EnhancedNotificationCenter } from './enhanced-notification-center'
+import { useRealTimeNotifications } from '@/lib/hooks/use-realtime-notifications'
 import { useAdminAuthStore } from '@/lib/stores/admin-auth-store'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export function AdminHeader() {
   const { user, logout } = useAdminAuthStore()
   const router = useRouter()
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [notifications] = useState(3) // Mock notification count
   const [showNotifications, setShowNotifications] = useState(false)
   const [mounted, setMounted] = useState(false)
+
+  // Real-time notifications
+  const { counts, isConnected } = useRealTimeNotifications()
 
   useEffect(() => {
     setMounted(true)
@@ -87,13 +91,23 @@ export function AdminHeader() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowNotifications(true)}
-            className="relative p-2 rounded-lg bg-bigg-dark/50 hover:bg-bigg-neon-green/10 text-gray-300 hover:text-bigg-neon-green transition-colors"
+            className={cn(
+              "relative p-2 rounded-lg bg-bigg-dark/50 hover:bg-bigg-neon-green/10 text-gray-300 hover:text-bigg-neon-green transition-colors",
+              !isConnected && "opacity-50"
+            )}
           >
             <Bell className="w-5 h-5" />
-            {notifications > 0 && (
-              <Badge className="absolute -top-1 -right-1 w-5 h-5 p-0 text-xs bg-bigg-bee-orange hover:bg-bigg-bee-orange flex items-center justify-center">
-                {notifications}
+            {counts.unread > 0 && (
+              <Badge className={cn(
+                "absolute -top-1 -right-1 w-5 h-5 p-0 text-xs flex items-center justify-center",
+                counts.critical > 0 ? "bg-red-500 animate-pulse" :
+                counts.high > 0 ? "bg-bigg-bee-orange" : "bg-bigg-neon-green"
+              )}>
+                {counts.unread > 99 ? '99+' : counts.unread}
               </Badge>
+            )}
+            {!isConnected && (
+              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-bigg-dark" />
             )}
           </motion.button>
 
@@ -160,8 +174,8 @@ export function AdminHeader() {
         </div>
       </div>
 
-      {/* Notification Center */}
-      <NotificationCenter
+      {/* Enhanced Notification Center */}
+      <EnhancedNotificationCenter
         isOpen={showNotifications}
         onClose={() => setShowNotifications(false)}
       />

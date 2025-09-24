@@ -29,6 +29,6 @@ const config = process.env.NODE_ENV === 'development'
       skipWaiting: true,
       disable: false,
       buildExcludes: [/middleware-manifest\.json$/],
-    })(nextConfig);
+    })(nextConfig as any);
 
 export default config;

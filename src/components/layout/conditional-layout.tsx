@@ -10,10 +10,11 @@ interface ConditionalLayoutProps {
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const pathname = usePathname();
 
-  // Hide header and footer for admin routes
+  // Hide header and footer for admin and marketplace routes
   const isAdminRoute = pathname.startsWith('/admin');
+  const isMarketplaceRoute = pathname.startsWith('/marketplace');
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isMarketplaceRoute) {
     return <>{children}</>;
   }
 

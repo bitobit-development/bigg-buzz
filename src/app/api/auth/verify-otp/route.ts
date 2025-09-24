@@ -51,60 +51,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // For test users, return simulated response without database operations
-    if (testUser) {
-      console.log(`[API] Returning test user response`)
-      return NextResponse.json({
-        success: true,
-        message: 'Test user phone number verified successfully',
-        user: {
-          id: `test-user-${Date.now()}`,
-          firstName: process.env.TEST_USER_FIRST_NAME || 'Test',
-          lastName: process.env.TEST_USER_LAST_NAME || 'User',
-          phone: normalizedPhone,
-          phoneVerified: true,
-          isActive: false,
-          needsTermsAcceptance: true,
-          isTestUser: true,
-        },
-      })
-    }
+    // For test users, we still need to update the database since a real subscriber was created
+    // The test user flag just affects OTP verification logic, not database operations
 
-    // Find user and update verification status
-    console.log(`[API] Looking for user with phone: ${normalizedPhone}`)
-    const user = await prisma.user.findUnique({
+    // Find subscriber and update verification status
+    console.log(`[API] Looking for subscriber with phone: ${normalizedPhone}`)
+    const subscriber = await prisma.subscriber.findUnique({
       where: { phone: normalizedPhone },
     })
 
-    if (!user) {
-      console.log(`[API] User not found with phone: ${normalizedPhone}`)
+    if (!subscriber) {
+      console.log(`[API] Subscriber not found with phone: ${normalizedPhone}`)
       return NextResponse.json(
         {
-          error: 'User not found',
-          code: 'USER_NOT_FOUND',
-          details: 'No user account found with this phone number. Please register first.'
+          error: 'Subscriber not found',
+          code: 'SUBSCRIBER_NOT_FOUND',
+          details: 'No subscriber account found with this phone number. Please register first.'
         },
         { status: 404 }
       )
     }
 
-    console.log(`[API] Found user: ${user.id}, current phoneVerified: ${user.phoneVerified}`)
+    console.log(`[API] Found subscriber: ${subscriber.id}, current phoneVerified: ${subscriber.phoneVerified}`)
 
     // Update phone verification - don't activate account yet (that happens in complete-registration)
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
+    const updatedSubscriber = await prisma.subscriber.update({
+      where: { id: subscriber.id },
       data: {
         phoneVerified: new Date(),
         // Don't set lastLoginAt for registration flow - only for login flow
         // lastLoginAt: new Date(),
       },
     })
-    console.log(`[API] Updated user phone verification: ${updatedUser.id}`)
+    console.log(`[API] Updated subscriber phone verification: ${updatedSubscriber.id}`)
 
     // Log compliance event
     await prisma.complianceEvent.create({
       data: {
-        userId: user.id,
+        subscriberId: subscriber.id,
         eventType: 'ID_VERIFICATION',
         description: 'Phone number verified via OTP',
         metadata: JSON.stringify({
@@ -116,18 +100,19 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log(`[API] Verification successful for user: ${user.id}`)
+    console.log(`[API] Verification successful for subscriber: ${subscriber.id}`)
     return NextResponse.json({
       success: true,
       message: 'Phone number verified successfully',
       user: {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
+        id: subscriber.id,
+        firstName: subscriber.firstName,
+        lastName: subscriber.lastName,
+        phone: subscriber.phone,
         phoneVerified: true,
-        isActive: user.isActive,
-        needsTermsAcceptance: !user.termsAccepted, // Indicate if terms acceptance is needed
+        isActive: subscriber.isActive,
+        needsTermsAcceptance: !subscriber.termsAccepted, // Indicate if terms acceptance is needed
+        isTestUser: testUser, // Include test user flag for frontend
       },
     })
 

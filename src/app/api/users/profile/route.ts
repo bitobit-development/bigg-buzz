@@ -26,7 +26,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   }
 
   const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
+    where: { id: session!.user.id },
     select: {
       id: true,
       email: true,
@@ -34,28 +34,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       firstName: true,
       lastName: true,
       dateOfBirth: true,
-      address: true,
-      profileImage: true,
       role: true,
       isActive: true,
-      saIdVerified: true,
       phoneVerified: true,
       emailVerified: true,
       createdAt: true,
       updatedAt: true,
-      currentSubscription: {
-        include: {
-          plan: true,
-        },
-      },
-      vendor: {
-        select: {
-          id: true,
-          businessName: true,
-          status: true,
-          rating: true,
-        },
-      },
     },
   })
 
@@ -81,7 +65,7 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
     const existingUser = await prisma.user.findFirst({
       where: {
         email: validatedData.email,
-        id: { not: session.user.id },
+        id: { not: session!.user.id },
       },
     })
 
@@ -91,7 +75,7 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
   }
 
   const updatedUser = await prisma.user.update({
-    where: { id: session.user.id },
+    where: { id: session!.user.id },
     data: {
       ...validatedData,
       ...(validatedData.email && { emailVerified: null }), // Reset email verification if email changed
@@ -103,11 +87,8 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
       firstName: true,
       lastName: true,
       dateOfBirth: true,
-      address: true,
-      profileImage: true,
       role: true,
       isActive: true,
-      saIdVerified: true,
       phoneVerified: true,
       emailVerified: true,
       updatedAt: true,
@@ -117,13 +98,13 @@ export const PUT = withErrorHandler(async (request: NextRequest) => {
   // Log compliance event
   await prisma.complianceEvent.create({
     data: {
-      userId: session.user.id,
+      userId: session!.user.id,
       eventType: 'DATA_MODIFICATION',
       description: 'User profile updated',
-      metadata: {
+      metadata: JSON.stringify({
         updatedFields: Object.keys(validatedData),
         emailChanged: !!validatedData.email,
-      },
+      }),
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip'),
       userAgent: request.headers.get('user-agent'),
     },

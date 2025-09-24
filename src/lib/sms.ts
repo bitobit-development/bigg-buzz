@@ -15,7 +15,7 @@ function generateOTP(): string {
 /**
  * Send OTP via SMS or WhatsApp
  */
-export async function sendOTP(phone: string, channel: 'sms' | 'whatsapp' = 'sms', userId?: string): Promise<boolean> {
+export async function sendOTP(phone: string, channel: 'sms' | 'whatsapp' = 'sms', userId?: string, isSubscriber: boolean = false): Promise<boolean> {
   try {
     const normalizedPhone = normalizePhoneNumber(phone)
     const otpCode = generateOTP()
@@ -36,40 +36,79 @@ export async function sendOTP(phone: string, channel: 'sms' | 'whatsapp' = 'sms'
     // Skip database storage for test users to avoid foreign key issues
     if (userId && !userId.startsWith('test-user-')) {
       try {
-        // First, clean up any existing unused OTP tokens for this user
-        await prisma.userToken.deleteMany({
-          where: {
-            userId,
-            type: 'OTP_VERIFICATION',
-            isUsed: false,
-          },
-        })
-
-        // Also clean up any existing OTP tokens for this phone number
-        const existingUser = await prisma.user.findUnique({
-          where: { phone: normalizedPhone }
-        })
-
-        if (existingUser) {
-          await prisma.userToken.deleteMany({
+        if (isSubscriber) {
+          // Handle subscriber tokens
+          // First, clean up any existing unused OTP tokens for this subscriber
+          await prisma.subscriberToken.deleteMany({
             where: {
-              userId: existingUser.id,
+              subscriberId: userId,
               type: 'OTP_VERIFICATION',
               isUsed: false,
             },
           })
-        }
 
-        // Create new OTP token with additional metadata
-        await prisma.userToken.create({
-          data: {
-            userId,
-            type: 'OTP_VERIFICATION',
-            token: `${normalizedPhone}:${otpCode}`, // Include phone for validation
-            expiresAt,
-            isUsed: false,
-          },
-        })
+          // Also clean up any existing OTP tokens for this phone number
+          const existingSubscriber = await prisma.subscriber.findUnique({
+            where: { phone: normalizedPhone }
+          })
+
+          if (existingSubscriber) {
+            await prisma.subscriberToken.deleteMany({
+              where: {
+                subscriberId: existingSubscriber.id,
+                type: 'OTP_VERIFICATION',
+                isUsed: false,
+              },
+            })
+          }
+
+          // Create new OTP token with additional metadata
+          await prisma.subscriberToken.create({
+            data: {
+              subscriberId: userId,
+              type: 'OTP_VERIFICATION',
+              token: `${normalizedPhone}:${otpCode}`, // Include phone for validation
+              expiresAt,
+              isUsed: false,
+            },
+          })
+        } else {
+          // Handle user tokens (admin/vendor)
+          // First, clean up any existing unused OTP tokens for this user
+          await prisma.userToken.deleteMany({
+            where: {
+              userId,
+              type: 'OTP_VERIFICATION',
+              isUsed: false,
+            },
+          })
+
+          // Also clean up any existing OTP tokens for this phone number
+          const existingUser = await prisma.user.findUnique({
+            where: { phone: normalizedPhone }
+          })
+
+          if (existingUser) {
+            await prisma.userToken.deleteMany({
+              where: {
+                userId: existingUser.id,
+                type: 'OTP_VERIFICATION',
+                isUsed: false,
+              },
+            })
+          }
+
+          // Create new OTP token with additional metadata
+          await prisma.userToken.create({
+            data: {
+              userId,
+              type: 'OTP_VERIFICATION',
+              token: `${normalizedPhone}:${otpCode}`, // Include phone for validation
+              expiresAt,
+              isUsed: false,
+            },
+          })
+        }
       } catch (error) {
         console.warn('Failed to store OTP in database:', error)
         // Continue anyway as in-memory storage is the primary method
@@ -136,7 +175,9 @@ export async function verifyOTP(phone: string, code: string): Promise<boolean> {
     try {
       // Look for token with phone:code format
       const expectedToken = `${normalizedPhone}:${code}`
-      const dbToken = await prisma.userToken.findFirst({
+
+      // Check user tokens (admin/vendor)
+      const userToken = await prisma.userToken.findFirst({
         where: {
           token: expectedToken,
           type: 'OTP_VERIFICATION',
@@ -154,16 +195,43 @@ export async function verifyOTP(phone: string, code: string): Promise<boolean> {
         }
       })
 
-      if (dbToken && dbToken.user?.phone === normalizedPhone) {
+      // Check subscriber tokens (customers)
+      const subscriberToken = await prisma.subscriberToken.findFirst({
+        where: {
+          token: expectedToken,
+          type: 'OTP_VERIFICATION',
+          isUsed: false,
+          expiresAt: {
+            gt: new Date(), // Not expired
+          },
+        },
+        include: {
+          subscriber: {
+            select: {
+              phone: true
+            }
+          }
+        }
+      })
+
+      if (userToken && userToken.user?.phone === normalizedPhone) {
         isValidFromDatabase = true
-        console.log(`[OTP] Database verification successful`)
+        console.log(`[OTP] User database verification successful`)
         // Mark as used immediately to prevent reuse
         await prisma.userToken.update({
-          where: { id: dbToken.id },
+          where: { id: userToken.id },
           data: { isUsed: true },
         })
-      } else if (dbToken) {
-        console.log(`[OTP] Database token found but phone mismatch: ${dbToken.user?.phone} vs ${normalizedPhone}`)
+      } else if (subscriberToken && subscriberToken.subscriber?.phone === normalizedPhone) {
+        isValidFromDatabase = true
+        console.log(`[OTP] Subscriber database verification successful`)
+        // Mark as used immediately to prevent reuse
+        await prisma.subscriberToken.update({
+          where: { id: subscriberToken.id },
+          data: { isUsed: true },
+        })
+      } else if (userToken || subscriberToken) {
+        console.log(`[OTP] Database token found but phone mismatch: ${userToken?.user?.phone || subscriberToken?.subscriber?.phone} vs ${normalizedPhone}`)
       } else {
         console.log(`[OTP] No valid database token found for ${expectedToken}`)
       }
@@ -256,7 +324,11 @@ async function sendClickatelSMS(phone: string, otp: string, retries = 3): Promis
 
       // Check if the message was accepted
       if (result.messages && result.messages[0] && result.messages[0].accepted === false) {
-        throw new Error(`Clickatel message rejected: ${result.messages[0].error || 'Unknown error'}`)
+        const errorDetails = result.messages[0].error
+          ? JSON.stringify(result.messages[0].error, null, 2)
+          : 'Unknown error'
+        console.error('Clickatel error details:', errorDetails)
+        throw new Error(`Clickatel message rejected: ${errorDetails}`)
       }
 
       return // Success
@@ -464,7 +536,8 @@ export async function cleanupExpiredOTPs(): Promise<void> {
 
   // Clean up database storage
   try {
-    const result = await prisma.userToken.deleteMany({
+    // Clean up user tokens
+    const userResult = await prisma.userToken.deleteMany({
       where: {
         type: 'OTP_VERIFICATION',
         expiresAt: {
@@ -472,7 +545,18 @@ export async function cleanupExpiredOTPs(): Promise<void> {
         },
       },
     })
-    dbCleanedCount = result.count
+
+    // Clean up subscriber tokens
+    const subscriberResult = await prisma.subscriberToken.deleteMany({
+      where: {
+        type: 'OTP_VERIFICATION',
+        expiresAt: {
+          lt: now, // Less than current time (expired)
+        },
+      },
+    })
+
+    dbCleanedCount = userResult.count + subscriberResult.count
   } catch (error) {
     console.warn('Failed to cleanup expired OTPs from database:', error)
   }

@@ -47,11 +47,15 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Skeleton, TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmationDialog, useConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AddSubscriberForm } from '@/components/admin/add-subscriber-form'
+import { SmartSearch } from '@/components/admin/smart-search'
+import { EnhancedBulkActionBar } from '@/components/admin/enhanced-bulk-action-bar'
+import { AutoRefreshIndicator } from '@/components/admin/auto-refresh-indicator'
+import { useDebouncedSearch, useFilterPresets } from '@/lib/hooks/use-debounced-search'
 
 interface User {
   id: string
@@ -109,7 +113,6 @@ export default function SubscribersPage() {
 
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
   const [roleFilter, setRoleFilter] = useState('CUSTOMER')
   const [verifiedFilter, setVerifiedFilter] = useState('all')
   const [activeFilter, setActiveFilter] = useState('active')
@@ -117,6 +120,17 @@ export default function SubscribersPage() {
   const [sortOrder, setSortOrder] = useState('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const [pagination, setPagination] = useState<UsersResponse['pagination'] | null>(null)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+  const [fetchError, setFetchError] = useState<Error | null>(null)
+
+  // Debounced search functionality
+  const { query: searchTerm, setQuery: setSearchTerm, debouncedQuery: debouncedSearchTerm, isSearching } = useDebouncedSearch({
+    delay: 300,
+    minLength: 1
+  })
+
+  // Filter presets functionality
+  const { presets: filterPresets, savePreset, deletePreset, applyPreset } = useFilterPresets('admin-user-filters')
 
   // Bulk actions
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -132,10 +146,12 @@ export default function SubscribersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true)
+      setFetchError(null)
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: '50',
-        search: searchTerm,
+        search: debouncedSearchTerm,
         role: roleFilter === 'all' ? '' : roleFilter,
         verified: verifiedFilter === 'all' ? '' : verifiedFilter,
         activeStatus: activeFilter,
@@ -148,11 +164,16 @@ export default function SubscribersPage() {
         const data: UsersResponse = await response.json()
         setUsers(data.users)
         setPagination(data.pagination)
+        setLastRefresh(new Date())
       } else {
+        const error = new Error(`Failed to fetch users: ${response.status}`)
+        setFetchError(error)
         toast.error('Failed to fetch subscribers')
       }
     } catch (error) {
       console.error('Failed to fetch subscribers:', error)
+      const err = error instanceof Error ? error : new Error('Unknown error occurred')
+      setFetchError(err)
       toast.error('Failed to fetch subscribers')
     } finally {
       setLoading(false)
@@ -161,7 +182,17 @@ export default function SubscribersPage() {
 
   useEffect(() => {
     fetchUsers()
-  }, [currentPage, searchTerm, roleFilter, verifiedFilter, activeFilter, sortBy, sortOrder])
+  }, [currentPage, debouncedSearchTerm, roleFilter, verifiedFilter, activeFilter, sortBy, sortOrder])
+
+  // Handle filter preset application
+  const handleFilterPreset = (preset: any) => {
+    if (preset.filters.role) setRoleFilter(preset.filters.role)
+    if (preset.filters.verified) setVerifiedFilter(preset.filters.verified)
+    if (preset.filters.activeStatus) setActiveFilter(preset.filters.activeStatus)
+    if (preset.filters.sortBy) setSortBy(preset.filters.sortBy)
+    if (preset.filters.sortOrder) setSortOrder(preset.filters.sortOrder)
+    setCurrentPage(1) // Reset to first page when applying preset
+  }
 
   // Bulk selection handlers
   const toggleSelectUser = (userId: string) => {
@@ -318,7 +349,7 @@ export default function SubscribersPage() {
           // Get filename from response headers or create default
           const contentDisposition = response.headers.get('content-disposition')
           const filename = contentDisposition
-            ? contentDisposition.split('filename="')[1]?.split('"')[0]
+            ? (contentDisposition.split('filename="')[1]?.split('"')[0] || `bigg-buzz-users-${format === 'csv' ? 'export' : 'data'}-${formatDateForFilename(new Date())}.${format}`)
             : `bigg-buzz-users-${format === 'csv' ? 'export' : 'data'}-${formatDateForFilename(new Date())}.${format}`
 
           // Download file
@@ -428,16 +459,15 @@ export default function SubscribersPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button
-            onClick={fetchUsers}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className="border-bigg-neon-green/20 hover:border-bigg-neon-green/40"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <AutoRefreshIndicator
+            onRefresh={fetchUsers}
+            isLoading={loading}
+            lastRefresh={lastRefresh}
+            error={fetchError}
+            defaultInterval={30000}
+            showProgress={true}
+            showLastRefresh={true}
+          />
         </div>
       </div>
 
@@ -450,16 +480,22 @@ export default function SubscribersPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Search subscribers..."
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            {/* Smart Search */}
+            <div className="md:col-span-2">
+              <SmartSearch
+                placeholder="Search subscribers, emails, phones..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-bigg-dark/50 border-bigg-neon-green/20 text-white"
+                onValueChange={setSearchTerm}
+                onFilterPreset={handleFilterPreset}
+                className="w-full"
               />
+              {isSearching && (
+                <div className="text-xs text-bigg-neon-green mt-1 flex items-center">
+                  <div className="animate-spin mr-1 w-3 h-3 border border-bigg-neon-green border-t-transparent rounded-full"></div>
+                  Searching...
+                </div>
+              )}
             </div>
 
             {/* Role Filter */}
@@ -503,8 +539,8 @@ export default function SubscribersPage() {
             {/* Sort */}
             <Select value={`${sortBy}-${sortOrder}`} onValueChange={(value) => {
               const [field, order] = value.split('-')
-              setSortBy(field)
-              setSortOrder(order)
+              if (field) setSortBy(field)
+              if (order) setSortOrder(order)
             }}>
               <SelectTrigger className="bg-bigg-dark/50 border-bigg-neon-green/20 text-white">
                 <SelectValue placeholder="Sort by" />
@@ -521,63 +557,38 @@ export default function SubscribersPage() {
         </CardContent>
       </Card>
 
-      {/* Bulk Actions Toolbar */}
-      {selectedUsers.size > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50"
-        >
-          <Card className="border-bigg-neon-green/30 bg-bigg-dark/95 backdrop-blur-xl shadow-2xl shadow-bigg-neon-green/20">
-            <CardContent className="flex items-center space-x-4 p-4">
-              <div className="text-sm text-white font-medium">
-                {selectedUsers.size} subscriber{selectedUsers.size !== 1 ? 's' : ''} selected
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => handleBulkAction('activate')}
-                  disabled={bulkActionLoading}
-                  variant="outline"
-                  size="sm"
-                  className="border-green-500/30 text-green-400 hover:bg-green-500/10"
-                >
-                  <UserCheck className="w-4 h-4 mr-1" />
-                  Activate
-                </Button>
-                <Button
-                  onClick={() => handleBulkAction('deactivate')}
-                  disabled={bulkActionLoading}
-                  variant="outline"
-                  size="sm"
-                  className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10"
-                >
-                  <UserX className="w-4 h-4 mr-1" />
-                  Deactivate
-                </Button>
-                <Button
-                  onClick={confirmBulkDelete}
-                  disabled={bulkActionLoading}
-                  variant="outline"
-                  size="sm"
-                  className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
-                <Button
-                  onClick={() => setSelectedUsers(new Set())}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
+      {/* Enhanced Bulk Action Bar */}
+      <EnhancedBulkActionBar
+        selectedItems={Array.from(selectedUsers)}
+        onClear={() => {
+          setSelectedUsers(new Set())
+          setSelectAll(false)
+        }}
+        onBulkAction={async (actionId, items) => {
+          setBulkActionLoading(true)
+          try {
+            switch (actionId) {
+              case 'activate':
+                await handleBulkAction('activate')
+                break
+              case 'deactivate':
+                await handleBulkAction('deactivate')
+                break
+              case 'delete':
+                await confirmBulkDelete()
+                break
+              case 'export':
+                await exportUsers('csv', false)
+                break
+              default:
+                console.warn('Unknown bulk action:', actionId)
+            }
+          } finally {
+            setBulkActionLoading(false)
+          }
+        }}
+        position="top"
+      />
 
       {/* Subscribers Table */}
       <Card className="border-bigg-neon-green/20 bg-bigg-dark/50 backdrop-blur-xl">
@@ -600,19 +611,7 @@ export default function SubscribersPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-4">
-              {[...Array(10)].map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
-                  <div className="space-y-2 flex-1">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-48" />
-                  </div>
-                  <Skeleton className="h-6 w-16" />
-                  <Skeleton className="h-8 w-8" />
-                </div>
-              ))}
-            </div>
+            <TableSkeleton rows={10} columns={7} />
           ) : (
             <div className="overflow-x-auto">
               <Table>

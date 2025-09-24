@@ -41,7 +41,7 @@ export function Header() {
         {/* Auth Buttons */}
         <div className="flex items-center space-x-4">
           <Button variant="ghost" asChild className="hidden md:inline-flex">
-            <Link href="/login">Sign In</Link>
+            <Link href="/sign-in">Sign In</Link>
           </Button>
           <Button asChild>
             <Link href="/register">Sign Up</Link>

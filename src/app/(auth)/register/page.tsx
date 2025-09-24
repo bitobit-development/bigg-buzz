@@ -456,7 +456,6 @@ export default function RegisterPage() {
       scale: 1,
       transition: {
         duration: 0.4,
-        ease: "easeOut",
         staggerChildren: 0.1
       }
     },
@@ -464,7 +463,7 @@ export default function RegisterPage() {
       opacity: 0,
       x: -50,
       scale: 0.95,
-      transition: { duration: 0.3, ease: "easeIn" }
+      transition: { duration: 0.3 }
     }
   };
 
@@ -473,7 +472,7 @@ export default function RegisterPage() {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.3, ease: "easeOut" }
+      transition: { duration: 0.3 }
     }
   };
 
@@ -1080,7 +1079,7 @@ export default function RegisterPage() {
 
               <div className={`text-center text-sm sm:text-base text-gray-300 pt-6 border-t border-white/10 mt-6 sm:mt-8`}>
                 Already have an account?{' '}
-                <Link href="/login" className="text-bigg-neon-green hover:text-bigg-neon-green-bright font-bold transition-colors duration-300 hover:underline">
+                <Link href="/sign-in" className="text-bigg-neon-green hover:text-bigg-neon-green-bright font-bold transition-colors duration-300 hover:underline">
                   Sign in
                 </Link>
               </div>

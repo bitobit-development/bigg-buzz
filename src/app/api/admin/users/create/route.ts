@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
     await prisma.complianceEvent.create({
       data: {
         userId: newUser.id,
-        eventType: 'DATA_CREATION',
+        eventType: 'DATA_MODIFICATION',
         description: 'Admin created new user account',
         metadata: JSON.stringify({
           action: 'admin-create-user',

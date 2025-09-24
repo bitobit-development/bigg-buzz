@@ -1,6 +1,68 @@
 import { z } from 'zod';
 
-// Product category enum
+// Product category enum matching database schema
+export const ProductCategorySchema = z.enum([
+  'FLOWER',
+  'CONCENTRATES',
+  'EDIBLES',
+  'ACCESSORIES',
+  'WELLNESS',
+  'SEEDS',
+  'CLONES',
+  'TOPICALS',
+  'TINCTURES',
+  'VAPES'
+]);
+
+// Strain type enum
+export const StrainTypeSchema = z.enum(['INDICA', 'SATIVA', 'HYBRID']);
+
+// Product filter schema for API endpoints
+export const ProductFilterSchema = z.object({
+  category: ProductCategorySchema.optional(),
+  strain: StrainTypeSchema.optional(),
+  minPrice: z.number().min(0).optional(),
+  maxPrice: z.number().min(0).optional(),
+  inStock: z.boolean().optional(),
+  search: z.string().min(1).optional(),
+  page: z.number().int().min(1).default(1),
+  limit: z.number().int().min(1).max(100).default(20),
+  sortBy: z.enum(['name', 'price', 'createdAt', 'thcContent']).default('createdAt'),
+  sortOrder: z.enum(['asc', 'desc']).default('desc'),
+  vendorId: z.string().cuid().optional()
+});
+
+// Product creation schema
+export const ProductCreateSchema = z.object({
+  name: z.string().min(1, 'Product name is required').max(255),
+  description: z.string().min(1, 'Description is required'),
+  price: z.number().min(0.01, 'Price must be greater than 0'),
+  category: ProductCategorySchema,
+  strain: StrainTypeSchema.optional(),
+  thcContent: z.number().min(0).max(100).optional(),
+  cbdContent: z.number().min(0).max(100).optional(),
+  weight: z.number().min(0).optional(),
+  stockQuantity: z.number().int().min(0).default(0),
+  images: z.string().default('[]'), // JSON string for SQLite
+  vendorId: z.string().cuid('Invalid vendor ID'),
+  sku: z.string().min(1, 'SKU is required').max(100),
+  compliance: z.string().optional() // JSON string for SQLite
+});
+
+// Product update schema
+export const ProductUpdateSchema = ProductCreateSchema.partial().extend({
+  id: z.string().cuid('Invalid product ID')
+});
+
+// Product variant schema for cart items
+export const ProductVariantSchema = z.object({
+  size: z.enum(['1g', '3.5g', '7g', '14g', '28g']).optional(),
+  strain: z.enum(['indica', 'sativa', 'hybrid']).optional(),
+  thc: z.number().min(0).max(100).optional(),
+  cbd: z.number().min(0).max(100).optional()
+});
+
+// Legacy schemas for backward compatibility
 export const productCategorySchema = z.enum([
   'flower',
   'concentrate',
@@ -11,7 +73,6 @@ export const productCategorySchema = z.enum([
   'seed',
 ]);
 
-// Product schemas
 export const productSchema = z.object({
   name: z
     .string()
@@ -73,7 +134,15 @@ export const productFilterSchema = z.object({
 });
 
 // Type exports
+export type ProductFilter = z.infer<typeof ProductFilterSchema>;
+export type ProductCreate = z.infer<typeof ProductCreateSchema>;
+export type ProductUpdate = z.infer<typeof ProductUpdateSchema>;
+export type ProductVariant = z.infer<typeof ProductVariantSchema>;
+export type ProductCategory = z.infer<typeof ProductCategorySchema>;
+export type StrainType = z.infer<typeof StrainTypeSchema>;
+
+// Legacy type exports
 export type Product = z.infer<typeof productSchema>;
-export type ProductUpdate = z.infer<typeof productUpdateSchema>;
-export type ProductFilter = z.infer<typeof productFilterSchema>;
-export type ProductCategory = z.infer<typeof productCategorySchema>;
+export type LegacyProductUpdate = z.infer<typeof productUpdateSchema>;
+export type LegacyProductFilter = z.infer<typeof productFilterSchema>;
+export type LegacyProductCategory = z.infer<typeof productCategorySchema>;

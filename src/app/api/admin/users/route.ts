@@ -31,9 +31,7 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    if (role) {
-      whereClause.role = role
-    }
+    // Note: Subscribers don't have roles, so role filtering is removed
 
     if (verified === 'true') {
       whereClause.phoneVerified = { not: null }
@@ -50,10 +48,10 @@ export async function GET(request: NextRequest) {
     // If activeStatus is 'all' or empty, don't filter by isActive (show both)
 
     // Get total count for pagination
-    const totalUsers = await prisma.user.count({ where: whereClause })
+    const totalUsers = await prisma.subscriber.count({ where: whereClause })
 
-    // Get users with pagination
-    const users = await prisma.user.findMany({
+    // Get subscribers with pagination (these are the platform clients)
+    const users = await prisma.subscriber.findMany({
       where: whereClause,
       select: {
         id: true,
@@ -61,7 +59,6 @@ export async function GET(request: NextRequest) {
         lastName: true,
         email: true,
         phone: true,
-        role: true,
         isActive: true,
         phoneVerified: true,
         emailVerified: true,
@@ -120,7 +117,7 @@ export async function PATCH(request: NextRequest) {
 
     switch (action) {
       case 'toggle-active':
-        updatedUser = await prisma.user.update({
+        updatedUser = await prisma.subscriber.update({
           where: { id: userId },
           data: { isActive: !data.isActive },
           select: {
@@ -133,27 +130,15 @@ export async function PATCH(request: NextRequest) {
         break
 
       case 'update-role':
-        if (!['CUSTOMER', 'VENDOR', 'ADMIN', 'SUPER_ADMIN'].includes(data.role)) {
-          return NextResponse.json(
-            { error: 'Invalid role' },
-            { status: 400 }
-          )
-        }
-        updatedUser = await prisma.user.update({
-          where: { id: userId },
-          data: { role: data.role },
-          select: {
-            id: true,
-            role: true,
-            firstName: true,
-            lastName: true
-          }
-        })
-        break
+        // Subscribers don't have roles, so this action is not supported
+        return NextResponse.json(
+          { error: 'Role update not supported for subscribers' },
+          { status: 400 }
+        )
 
       case 'delete':
         // Soft delete by setting isActive to false
-        updatedUser = await prisma.user.update({
+        updatedUser = await prisma.subscriber.update({
           where: { id: userId },
           data: { isActive: false },
           select: {
@@ -175,9 +160,9 @@ export async function PATCH(request: NextRequest) {
     // Log compliance event
     await prisma.complianceEvent.create({
       data: {
-        userId,
+        subscriberId: userId,
         eventType: 'DATA_MODIFICATION',
-        description: `Admin ${action} performed`,
+        description: `Admin ${action} performed on subscriber`,
         metadata: JSON.stringify({
           action,
           previousData: data,

@@ -1,0 +1,171 @@
+// Minimal Prisma schema for testing registration flow
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Minimal User model for testing registration
+model User {
+  id                  String   @id @default(cuid())
+  email               String?  @unique
+  emailVerified       DateTime?
+  phone               String?  @unique
+  phoneVerified       DateTime?
+  saId                String?  @unique // Encrypted SA ID
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  role                UserRole
+  isActive            Boolean  @default(true)
+  marketingConsent    Boolean  @default(false)
+  marketingConsentDate DateTime?
+  termsAccepted       Boolean  @default(false)
+  termsAcceptedDate   DateTime?
+  privacyAccepted     Boolean  @default(false)
+  privacyAcceptedDate DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations (minimal)
+  tokens           UserToken[]
+  complianceEvents ComplianceEvent[]
+
+  @@map("users")
+}
+
+// Subscriber model for platform clients/customers
+model Subscriber {
+  id                  String   @id @default(cuid())
+  email               String?  @unique
+  emailVerified       DateTime?
+  phone               String?  @unique
+  phoneVerified       DateTime?
+  saId                String?  @unique // Encrypted SA ID
+  firstName           String?
+  lastName            String?
+  dateOfBirth         DateTime?
+  isActive            Boolean  @default(true)
+  marketingConsent    Boolean  @default(false)
+  marketingConsentDate DateTime?
+  termsAccepted       Boolean  @default(false)
+  termsAcceptedDate   DateTime?
+  privacyAccepted     Boolean  @default(false)
+  privacyAcceptedDate DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  tokens           SubscriberToken[]
+  complianceEvents ComplianceEvent[]
+
+  @@map("subscribers")
+}
+
+enum UserRole {
+  CUSTOMER
+  VENDOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Authentication Tokens for OTP
+model UserToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_tokens")
+}
+
+// Authentication Tokens for Subscribers
+model SubscriberToken {
+  id        String    @id @default(cuid())
+  subscriberId String
+  type      TokenType
+  token     String    @unique
+  expiresAt DateTime
+  isUsed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  @@map("subscriber_tokens")
+}
+
+enum TokenType {
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+  OTP_LOGIN
+  OTP_REGISTRATION
+  OTP_VERIFICATION
+  ACCESS_TOKEN
+  REFRESH_TOKEN
+}
+
+// Compliance Events for auditing
+model ComplianceEvent {
+  id          String              @id @default(cuid())
+  userId      String?
+  subscriberId String?
+  eventType   ComplianceEventType
+  description String
+  metadata    String?             // JSON as text for SQLite
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime            @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+  subscriber Subscriber? @relation(fields: [subscriberId], references: [id])
+
+  @@map("compliance_events")
+}
+
+// Pending Admin Registrations for OTP verification workflow
+model PendingAdminRegistration {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String
+  phone           String
+  saId            String
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  termsAccepted   Boolean   @default(true)
+  marketingConsent Boolean  @default(false)
+  adminUserId     String    // ID of admin who initiated registration
+  otpSent         Boolean   @default(false)
+  otpVerified     Boolean   @default(false)
+  otpAttempts     Int       @default(0)
+  lastOtpSentAt   DateTime?
+  otpVerifiedAt   DateTime?
+  expiresAt       DateTime  // When this pending registration expires
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("pending_admin_registrations")
+}
+
+enum ComplianceEventType {
+  USER_REGISTRATION
+  ID_VERIFICATION
+  AGE_VERIFICATION
+  ORDER_PLACED
+  PAYMENT_PROCESSED
+  PRODUCT_DELIVERED
+  ACCOUNT_SUSPENDED
+  DATA_ACCESS
+  DATA_MODIFICATION
+  LOGIN_ATTEMPT
+  SECURITY_ALERT
+}

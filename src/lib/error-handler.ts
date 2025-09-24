@@ -116,11 +116,11 @@ export function handleAPIError(
     statusCode = 400
     message = 'Invalid input data'
     code = 'VALIDATION_ERROR'
-    details = error.errors.map(err => ({
-      field: err.path.join('.'),
-      message: err.message,
-      code: err.code,
-    }))
+    details = Array.isArray(error.errors) ? error.errors.map(err => ({
+      field: err.path?.join('.') || 'unknown',
+      message: err.message || 'Validation error',
+      code: err.code || 'VALIDATION_ERROR',
+    })) : []
 
     appLogger.warn(`Validation error: ${message}`, { ...logContext, details })
   } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
