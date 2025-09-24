@@ -16,7 +16,7 @@ export function useDebouncedSearch({
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const timeoutRef = useRef<NodeJS.Timeout>()
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Debounce the search query
   useEffect(() => {

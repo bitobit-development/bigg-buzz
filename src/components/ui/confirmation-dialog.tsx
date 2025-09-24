@@ -88,7 +88,7 @@ export function ConfirmationDialog({
   additionalInfo
 }: ConfirmationDialogProps) {
   const styles = variantStyles[variant]
-  const IconComponent = icon || styles.icon
+  const IconComponent = (icon || styles.icon) as React.ComponentType<{ className?: string }>
 
   const handleConfirm = async () => {
     try {

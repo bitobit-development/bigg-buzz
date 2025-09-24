@@ -64,31 +64,36 @@ const defaultActions: BulkAction[] = [
     id: 'activate',
     label: 'Activate',
     icon: <UserCheck className="w-4 h-4" />,
-    variant: 'success'
+    variant: 'success',
+    onClick: () => {}
   },
   {
     id: 'deactivate',
     label: 'Deactivate',
     icon: <UserX className="w-4 h-4" />,
-    variant: 'warning'
+    variant: 'warning',
+    onClick: () => {}
   },
   {
     id: 'export',
     label: 'Export',
     icon: <Download className="w-4 h-4" />,
-    variant: 'default'
+    variant: 'default',
+    onClick: () => {}
   },
   {
     id: 'send-email',
     label: 'Send Email',
     icon: <Mail className="w-4 h-4" />,
-    variant: 'default'
+    variant: 'default',
+    onClick: () => {}
   },
   {
     id: 'change-role',
     label: 'Change Role',
     icon: <Shield className="w-4 h-4" />,
-    variant: 'default'
+    variant: 'default',
+    onClick: () => {}
   },
   {
     id: 'archive',
@@ -96,7 +101,8 @@ const defaultActions: BulkAction[] = [
     icon: <Archive className="w-4 h-4" />,
     variant: 'warning',
     requiresConfirmation: true,
-    confirmationMessage: 'Are you sure you want to archive these items?'
+    confirmationMessage: 'Are you sure you want to archive these items?',
+    onClick: () => {}
   },
   {
     id: 'delete',
@@ -104,7 +110,8 @@ const defaultActions: BulkAction[] = [
     icon: <Trash2 className="w-4 h-4" />,
     variant: 'destructive',
     requiresConfirmation: true,
-    confirmationMessage: 'This action cannot be undone. Are you sure?'
+    confirmationMessage: 'This action cannot be undone. Are you sure?',
+    onClick: () => {}
   }
 ]
 
@@ -128,6 +135,7 @@ export function EnhancedBulkActionBar({
       }, 5000)
       return () => clearTimeout(timer)
     }
+    return undefined
   }, [selectedItems.length])
 
   // Handle bulk action execution

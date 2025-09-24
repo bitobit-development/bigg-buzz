@@ -265,7 +265,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json(transformedResult)
   } catch (error) {
     console.error('Error adding item to cart:', error)
-    if (error.message === 'Not enough stock available') {
+    if (error instanceof Error && error.message === 'Not enough stock available') {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

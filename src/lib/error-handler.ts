@@ -116,7 +116,7 @@ export function handleAPIError(
     statusCode = 400
     message = 'Invalid input data'
     code = 'VALIDATION_ERROR'
-    details = Array.isArray(error.errors) ? error.errors.map(err => ({
+    details = Array.isArray(error.issues) ? error.issues.map(err => ({
       field: err.path?.join('.') || 'unknown',
       message: err.message || 'Validation error',
       code: err.code || 'VALIDATION_ERROR',

@@ -148,7 +148,7 @@ export const authOptions: NextAuthOptions = {
             lastName: user.lastName,
             role: user.role,
             isActive: user.isActive,
-            saIdVerified: !!user.saIdVerified,
+            saIdVerified: !!user.saId,
             phoneVerified: !!user.phoneVerified,
             emailVerified: !!user.emailVerified,
           }
@@ -175,9 +175,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
         token.role = user.role
         token.isActive = user.isActive
-        token.saIdVerified = user.saIdVerified
-        token.phoneVerified = user.phoneVerified
-        token.emailVerified = user.emailVerified
+        token.saIdVerified = !!(user as any).saId
+        token.phoneVerified = !!(user as any).phoneVerified
+        token.emailVerified = !!(user as any).emailVerified
       }
 
       // Log compliance event
@@ -232,7 +232,6 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: '/auth/signin',
-    signUp: '/auth/signup',
     error: '/auth/error',
   },
 
@@ -352,7 +351,7 @@ async function handleLogin({ saId, phone }: { saId: string; phone: string }) {
     lastName: user.lastName,
     role: user.role,
     isActive: user.isActive,
-    saIdVerified: !!user.saIdVerified,
+    saIdVerified: !!user.saId,
     phoneVerified: false, // Will be verified after OTP
     emailVerified: !!user.emailVerified,
   }
@@ -390,7 +389,6 @@ async function handleOTPVerification({
     where: { id: user.id },
     data: {
       phoneVerified: new Date(),
-      lastLoginAt: new Date(),
     },
   })
 
@@ -412,7 +410,7 @@ async function handleOTPVerification({
     lastName: user.lastName,
     role: user.role,
     isActive: user.isActive,
-    saIdVerified: !!user.saIdVerified,
+    saIdVerified: !!user.saId,
     phoneVerified: true,
     emailVerified: !!user.emailVerified,
   }

@@ -5,6 +5,9 @@ import { AdminHeader } from '@/components/admin/admin-header'
 import { AdminAuthProvider } from '@/components/admin/admin-auth-provider'
 import { ToastContainer } from '@/components/ui/toast'
 
+// Force dynamic rendering for admin pages
+export const dynamic = 'force-dynamic'
+
 interface AdminLayoutProps {
   children: ReactNode
 }

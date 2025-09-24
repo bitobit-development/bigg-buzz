@@ -1,3 +1,4 @@
+// Re-export specific types to avoid conflicts
 export * from './auth';
 export * from './product';
 export * from './order';

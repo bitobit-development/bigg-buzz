@@ -102,7 +102,7 @@ export default function CartPage() {
       toast.success('Quantity updated');
     } catch (error) {
       console.error('Error updating quantity:', error);
-      toast.error(error.message || 'Failed to update quantity');
+      toast.error(error instanceof Error ? error.message : 'Failed to update quantity');
     } finally {
       setUpdating(null);
     }
@@ -126,7 +126,7 @@ export default function CartPage() {
       toast.success('Item removed from cart');
     } catch (error) {
       console.error('Error removing item:', error);
-      toast.error(error.message || 'Failed to remove item');
+      toast.error(error instanceof Error ? error.message : 'Failed to remove item');
     } finally {
       setUpdating(null);
     }
@@ -149,7 +149,7 @@ export default function CartPage() {
       toast.success('Cart cleared');
     } catch (error) {
       console.error('Error clearing cart:', error);
-      toast.error(error.message || 'Failed to clear cart');
+      toast.error(error instanceof Error ? error.message : 'Failed to clear cart');
     }
   };
 
@@ -315,7 +315,7 @@ export default function CartPage() {
                               <div className="flex gap-2 mt-1">
                                 {Object.entries(item.variant).map(([key, value]) => (
                                   <Badge key={key} variant="secondary" className="text-xs">
-                                    {key}: {value}
+                                    {key}: {String(value)}
                                   </Badge>
                                 ))}
                               </div>

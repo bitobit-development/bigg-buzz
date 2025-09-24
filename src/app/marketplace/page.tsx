@@ -174,7 +174,7 @@ export default function MarketplacePage() {
   );
 
   // Phase 4: Cart functions using backend cart store
-  const addToCart = async (product, quantity = 1) => {
+  const addToCart = async (product: any, quantity = 1) => {
     try {
       if (!product.inStock) {
         toast.error('This product is currently out of stock');
@@ -183,7 +183,7 @@ export default function MarketplacePage() {
 
       await addItem(product.id, quantity);
     } catch (error) {
-      handleProductError(product.id, error.message);
+      handleProductError(product.id, (error as Error).message);
     }
   };
 
@@ -218,7 +218,7 @@ export default function MarketplacePage() {
   };
 
   // Phase 5: Accessibility and UX improvements
-  const handleKeyboardNavigation = (e, action) => {
+  const handleKeyboardNavigation = (e: React.KeyboardEvent, action: () => void) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       action();
@@ -230,7 +230,7 @@ export default function MarketplacePage() {
   const cartItemCount = cartData?.summary?.itemCount || 0;
 
   // Phase 5: Error boundary functionality
-  const handleProductError = (productId, errorMessage) => {
+  const handleProductError = (productId: string, errorMessage: string) => {
     console.error(`Product ${productId} error:`, errorMessage);
     toast.error('Unable to process product action. Please try again.');
   };
@@ -655,11 +655,11 @@ export default function MarketplacePage() {
                                 <h4 className="font-medium text-white text-sm">{product.name}</h4>
                                 <p className="text-xs text-gray-400">
                                   {product.strain ? `${product.strain} • ` : ''}
-                                  {product.thcContent ? `${product.thcContent}% THC • ` : ''}
+                                  {product.thc ? `${product.thc}% THC • ` : ''}
                                   {product.weight ? `${product.weight}g` : 'Various sizes'}
                                 </p>
                                 <div className="flex items-center space-x-2 mt-2">
-                                  <Badge variant="outline" className={`text-xs ${categoryColor[product.category] || 'text-gray-400 border-gray-400'}`}>
+                                  <Badge variant="outline" className={`text-xs ${categoryColor[product.category as keyof typeof categoryColor] || 'text-gray-400 border-gray-400'}`}>
                                     {product.category.toLowerCase().replace('_', ' ')}
                                   </Badge>
                                   <span className="text-emerald-400 font-semibold text-sm whitespace-nowrap">R {product.price.toFixed(2)}</span>
@@ -667,7 +667,7 @@ export default function MarketplacePage() {
                               </div>
                               <div className="w-12 h-12 bg-emerald-400/10 rounded-lg flex items-center justify-center">
                                 <span className="text-emerald-400 text-lg">
-                                  {categoryIcon[product.category] || '🌿'}
+                                  {categoryIcon[product.category as keyof typeof categoryIcon] || '🌿'}
                                 </span>
                               </div>
                             </div>
@@ -1051,7 +1051,7 @@ export default function MarketplacePage() {
                           <CardTitle className="text-white text-lg leading-tight break-words">{product.name}</CardTitle>
                           <div className="flex items-center space-x-2 mt-1">
                             <Badge variant="secondary" className="bg-gray-700 text-gray-300 text-xs">
-                              {categoryIcon[product.category]}
+                              {categoryIcon[product.category as keyof typeof categoryIcon]}
                               <span className="ml-1 capitalize">{product.category}</span>
                             </Badge>
                             <Badge variant="outline" className="border-emerald-500 text-emerald-400 text-xs">

@@ -27,8 +27,8 @@ export function useRealTimeNotifications() {
   const [notifications, setNotifications] = useState<RealTimeNotification[]>([])
   const [isConnected, setIsConnected] = useState(false)
   const [lastActivity, setLastActivity] = useState<Date | null>(null)
-  const intervalRef = useRef<NodeJS.Timeout>()
-  const activityTimeoutRef = useRef<NodeJS.Timeout>()
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const activityTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Simulate real-time events (in a real app, this would be WebSocket/SSE)
   const simulateRealTimeEvent = useCallback(() => {
@@ -76,7 +76,9 @@ export function useRealTimeNotifications() {
     ]
 
     const randomEvent = events[Math.floor(Math.random() * events.length)]
-    processNotificationEvent(randomEvent)
+    if (randomEvent) {
+      processNotificationEvent(randomEvent)
+    }
   }, [])
 
   // Process notification events into notifications

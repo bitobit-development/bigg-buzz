@@ -22,7 +22,8 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       totalSpentResult,
       thisMonthSpentResult,
       favoriteCategory,
-      memberSince
+      memberSince,
+      subscriberBalance
     ] = await Promise.all([
       // Total orders count
       prisma.order.count({
@@ -89,7 +90,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
         orderBy: { _sum: { quantity: 'desc' } },
         take: 1
       }).then(async (result) => {
-        if (result.length === 0) return null
+        if (result.length === 0 || !result[0]?.productId) return null
 
         const topProduct = await prisma.product.findUnique({
           where: { id: result[0].productId },
@@ -103,6 +104,12 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       prisma.subscriber.findUnique({
         where: { id: subscriberId },
         select: { createdAt: true }
+      }),
+
+      // Subscriber token balance
+      prisma.subscriber.findUnique({
+        where: { id: subscriberId },
+        select: { tokenBalance: true }
       })
     ])
 
@@ -133,7 +140,7 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
       averageOrderValue: averageOrderValue,
       favoriteCategory: formatCategory(favoriteCategory),
       memberSince: memberSinceFormatted,
-      currentBalance: subscriber.tokenBalance
+      currentBalance: subscriberBalance?.tokenBalance || 0
     }
 
     return NextResponse.json({

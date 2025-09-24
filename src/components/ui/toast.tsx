@@ -154,7 +154,7 @@ export const useToast = () => {
         addToast({ type: 'info', title, description, ...options }),
       loading: (title: string, description?: string) =>
         addToast({ type: 'loading', title, description, duration: 0 }),
-      promise: async <T>(
+      promise: async function <T>(
         promise: Promise<T>,
         {
           loading: loadingMessage,
@@ -165,7 +165,7 @@ export const useToast = () => {
           success: string | ((data: T) => string)
           error: string | ((error: any) => string)
         }
-      ) => {
+      ) {
         const toastId = addToast({ type: 'loading', title: loadingMessage, duration: 0 })
 
         try {

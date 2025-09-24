@@ -190,7 +190,7 @@ export default function CheckoutPage() {
       toast.success('Order placed successfully!');
     } catch (error) {
       console.error('Error creating order:', error);
-      toast.error(error.message || 'Failed to place order');
+      toast.error(error instanceof Error ? error.message : 'Failed to place order');
     } finally {
       setSubmitting(false);
     }
@@ -341,7 +341,7 @@ export default function CheckoutPage() {
                     <Checkbox
                       id="saveAddress"
                       checked={saveAddress}
-                      onCheckedChange={setSaveAddress}
+                      onCheckedChange={(checked) => setSaveAddress(checked === true)}
                     />
                     <Label htmlFor="saveAddress" className="text-gray-300 text-sm">
                       Save this address for future orders

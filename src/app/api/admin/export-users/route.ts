@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
           user.lastName || '',
           user.email || '',
           user.phone || '',
-          user.role,
+          'Subscriber',
           user.isActive ? 'Active' : 'Inactive',
           user.phoneVerified ? 'Yes' : 'No',
           user.emailVerified ? 'Yes' : 'No',

@@ -54,14 +54,8 @@ export interface OrderItem {
   total: number;
 }
 
-export interface Address {
-  street: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  country: string;
-  isDefault?: boolean;
-}
+// Import Address from auth to avoid conflicts
+import type { Address } from './auth';
 
 export type OrderStatus =
   | 'pending'

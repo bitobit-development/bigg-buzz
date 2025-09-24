@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ interface OrderData {
   }>;
 }
 
-export default function OrderSuccessPage() {
+function OrderSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
@@ -316,7 +316,7 @@ export default function OrderSuccessPage() {
                           </Badge>
                           {item.variant && Object.entries(item.variant).map(([key, value]) => (
                             <Badge key={key} variant="outline" className="text-xs">
-                              {key}: {value}
+                              {key}: {String(value)}
                             </Badge>
                           ))}
                         </div>
@@ -407,5 +407,36 @@ export default function OrderSuccessPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+function OrderSuccessLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-black">
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div className="text-center space-y-4">
+            <Skeleton className="h-16 w-16 rounded-full mx-auto" />
+            <Skeleton className="h-8 w-64 mx-auto" />
+            <Skeleton className="h-6 w-48 mx-auto" />
+          </div>
+          <Card className="bg-gray-900 border-gray-700">
+            <CardContent className="p-6 space-y-4">
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-6 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function OrderSuccessPage() {
+  return (
+    <Suspense fallback={<OrderSuccessLoadingFallback />}>
+      <OrderSuccessContent />
+    </Suspense>
   );
 }

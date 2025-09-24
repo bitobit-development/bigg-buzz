@@ -320,9 +320,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
     return NextResponse.json(transformedOrder, { status: 201 })
   } catch (error) {
     console.error('Error creating order:', error)
-    if (error.message?.includes('Insufficient token balance') ||
-        error.message?.includes('Cart is empty') ||
-        error.message?.includes('not available')) {
+    if (error instanceof Error &&
+        (error.message?.includes('Insufficient token balance') ||
+         error.message?.includes('Cart is empty') ||
+         error.message?.includes('not available'))) {
       return NextResponse.json(
         { error: error.message },
         { status: 400 }

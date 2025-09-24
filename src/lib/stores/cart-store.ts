@@ -80,9 +80,10 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ cart: cartData, loading: false });
     } catch (error) {
       console.error('Error fetching cart:', error);
-      set({ error: error.message, loading: false });
+      const errorMessage = (error as Error).message || 'Unknown error';
+      set({ error: errorMessage, loading: false });
       // Don't show toast error for auth issues
-      if (!error.message.includes('Authentication')) {
+      if (!errorMessage.includes('Authentication')) {
         toast.error('Failed to load cart');
       }
     }
@@ -124,9 +125,10 @@ export const useCartStore = create<CartState>((set, get) => ({
       toast.success('Item added to cart');
     } catch (error) {
       console.error('Error adding item to cart:', error);
-      set({ error: error.message, loading: false });
-      if (!error.message.includes('sign in')) {
-        toast.error(error.message || 'Failed to add item to cart');
+      const errorMessage = (error as Error).message || 'Unknown error';
+      set({ error: errorMessage, loading: false });
+      if (!errorMessage.includes('sign in')) {
+        toast.error(errorMessage || 'Failed to add item to cart');
       }
     }
   },
@@ -157,8 +159,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       toast.success('Quantity updated');
     } catch (error) {
       console.error('Error updating quantity:', error);
-      set({ error: error.message, loading: false });
-      toast.error(error.message || 'Failed to update quantity');
+      const errorMessage = (error as Error).message || 'Unknown error';
+      set({ error: errorMessage, loading: false });
+      toast.error(errorMessage || 'Failed to update quantity');
     }
   },
 
@@ -184,8 +187,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       toast.success('Item removed from cart');
     } catch (error) {
       console.error('Error removing item:', error);
-      set({ error: error.message, loading: false });
-      toast.error(error.message || 'Failed to remove item');
+      const errorMessage = (error as Error).message || 'Unknown error';
+      set({ error: errorMessage, loading: false });
+      toast.error(errorMessage || 'Failed to remove item');
     }
   },
 
@@ -211,8 +215,9 @@ export const useCartStore = create<CartState>((set, get) => ({
       toast.success('Cart cleared');
     } catch (error) {
       console.error('Error clearing cart:', error);
-      set({ error: error.message, loading: false });
-      toast.error(error.message || 'Failed to clear cart');
+      const errorMessage = (error as Error).message || 'Unknown error';
+      set({ error: errorMessage, loading: false });
+      toast.error(errorMessage || 'Failed to clear cart');
     }
   },
 }));

@@ -177,7 +177,7 @@ export function CartSidebar({ trigger }: CartSidebarProps) {
                             <div className="flex gap-1 mt-1">
                               {Object.entries(item.variant).map(([key, value]) => (
                                 <Badge key={key} variant="secondary" className="text-xs">
-                                  {key}: {value}
+                                  {key}: {String(value)}
                                 </Badge>
                               ))}
                             </div>

@@ -7,10 +7,10 @@ const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-jwt-s
 
 export interface SubscriberUser {
   id: string
-  firstName: string
-  lastName: string
-  phone: string
-  email?: string
+  firstName: string | null
+  lastName: string | null
+  phone: string | null
+  email?: string | null
   isActive: boolean
   phoneVerified: boolean
   termsAccepted: boolean
@@ -22,10 +22,10 @@ export interface SubscriberUser {
 export async function createSubscriberToken(subscriber: SubscriberUser): Promise<string> {
   const token = new SignJWT({
     id: subscriber.id,
-    firstName: subscriber.firstName,
-    lastName: subscriber.lastName,
-    phone: subscriber.phone,
-    email: subscriber.email,
+    firstName: subscriber.firstName || '',
+    lastName: subscriber.lastName || '',
+    phone: subscriber.phone || '',
+    email: subscriber.email || null,
     isActive: subscriber.isActive,
     phoneVerified: subscriber.phoneVerified,
     termsAccepted: subscriber.termsAccepted,
@@ -61,10 +61,10 @@ export async function verifySubscriberToken(): Promise<SubscriberUser | null> {
 
     return {
       id: payload.id as string,
-      firstName: payload.firstName as string,
-      lastName: payload.lastName as string,
-      phone: payload.phone as string,
-      email: payload.email as string,
+      firstName: (payload.firstName as string) || null,
+      lastName: (payload.lastName as string) || null,
+      phone: (payload.phone as string) || null,
+      email: (payload.email as string) || null,
       isActive: payload.isActive as boolean,
       phoneVerified: payload.phoneVerified as boolean,
       termsAccepted: payload.termsAccepted as boolean
@@ -98,10 +98,10 @@ export async function verifySubscriberTokenFromHeader(request: NextRequest): Pro
 
     return {
       id: payload.id as string,
-      firstName: payload.firstName as string,
-      lastName: payload.lastName as string,
-      phone: payload.phone as string,
-      email: payload.email as string,
+      firstName: (payload.firstName as string) || null,
+      lastName: (payload.lastName as string) || null,
+      phone: (payload.phone as string) || null,
+      email: (payload.email as string) || null,
       isActive: payload.isActive as boolean,
       phoneVerified: payload.phoneVerified as boolean,
       termsAccepted: payload.termsAccepted as boolean

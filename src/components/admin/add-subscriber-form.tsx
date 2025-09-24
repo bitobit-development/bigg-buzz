@@ -287,6 +287,7 @@ export function AddSubscriberForm({ isOpen, onClose, onSuccess }: AddSubscriberF
 
       return () => clearInterval(interval)
     }
+    return undefined
   }, [pendingRegistration?.expiresAt, formatTimeRemaining])
 
   const handleClose = () => {

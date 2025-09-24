@@ -76,9 +76,17 @@ export async function decrypt(encryptedData: string): Promise<string> {
   }
 
   // Convert hex back to bytes
-  const salt = new Uint8Array(parts[0].match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
-  const iv = new Uint8Array(parts[1].match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
-  const encrypted = new Uint8Array(parts[2].match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)))
+  const saltMatch = parts[0]?.match(/.{1,2}/g)
+  const ivMatch = parts[1]?.match(/.{1,2}/g)
+  const encryptedMatch = parts[2]?.match(/.{1,2}/g)
+
+  if (!saltMatch || !ivMatch || !encryptedMatch) {
+    throw new Error('Invalid encrypted data format')
+  }
+
+  const salt = new Uint8Array(saltMatch.map(byte => parseInt(byte, 16)))
+  const iv = new Uint8Array(ivMatch.map(byte => parseInt(byte, 16)))
+  const encrypted = new Uint8Array(encryptedMatch.map(byte => parseInt(byte, 16)))
 
   // Derive the same key
   const keyMaterial = await crypto.subtle.importKey(
@@ -265,7 +273,7 @@ export function generateSecureOTP(length: number = 6): string {
 
   for (let i = 0; i < length; i++) {
     const randomBytes = crypto.getRandomValues(new Uint8Array(1))
-    const randomIndex = randomBytes[0] % digits.length
+    const randomIndex = randomBytes[0]! % digits.length
     otp += digits[randomIndex]
   }
 

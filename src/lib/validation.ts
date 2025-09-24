@@ -35,7 +35,7 @@ export function validateSAID(id: string): boolean {
 
   // Basic date validation (doesn't check leap years for simplicity)
   const daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-  if (day > daysInMonth[month - 1]) return false
+  if (day > (daysInMonth[month - 1] ?? 31)) return false
 
   // Validate gender digit (0-9)
   if (gender < 0 || gender > 9) return false
@@ -213,7 +213,7 @@ export function maskPhone(phone: string): string {
 export function maskEmail(email: string): string {
   if (!email || !email.includes('@')) return email
   const [username, domain] = email.split('@')
-  if (username.length <= 2) return email
+  if (!username || username.length <= 2) return email
   return username.substring(0, 2) + '***@' + domain
 }
 
