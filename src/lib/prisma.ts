@@ -14,6 +14,9 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
       url: process.env.DATABASE_URL,
     },
   },
+
+  // Enhanced connection configuration for serverless
+  __internal: undefined, // Remove any internal config that might cause issues
 })
 
 // Only cache Prisma client in development
