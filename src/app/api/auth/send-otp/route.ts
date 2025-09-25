@@ -175,9 +175,7 @@ export async function POST(request: NextRequest) {
     console.log(`[SEND-OTP] Generated OTP: ${otpCode} for phone: ${normalizedPhone}`)
 
     // Store OTP in database
-    const userId = isTestUser ? `test-user-${Date.now()}` : subscriber?.id
-
-    if (subscriber && !isTestUser) {
+    if (subscriber) {
       // Clean up any existing unused OTP tokens for this subscriber
       await prisma.subscriberToken.deleteMany({
         where: {
@@ -199,6 +197,12 @@ export async function POST(request: NextRequest) {
       })
 
       console.log(`[SEND-OTP] Stored OTP token: ${normalizedPhone}:${otpCode}`)
+
+      if (isTestUser) {
+        console.log(`[SEND-OTP] Test user detected - token still stored for: ${normalizedPhone}`)
+      }
+    } else if (isTestUser) {
+      console.log(`[SEND-OTP] Test user without subscriber record - SMS sent but no token stored`)
     }
 
     // Send SMS
