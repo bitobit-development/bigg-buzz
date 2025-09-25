@@ -21,7 +21,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:prod": "NODE_ENV=production tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
-    "prepare": "husky install",
+    "prepare": "node -e \"process.env.NODE_ENV !== 'production' && process.exit(1)\" || husky install",
     "postbuild": "prisma generate"
   },
   "dependencies": {
