@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm install --ignore-scripts",
+  "installCommand": "npm install",
   "regions": ["cpt1"],
   "env": {
     "NODE_ENV": "production"
