@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         )
       }
+    } else {
+      // For test users, try to find existing test subscriber or create a virtual one
+      console.log(`[SMS] Processing test user: ${normalizedPhone}`)
     }
 
     // For registration flow, allow sending OTP to inactive subscribers (newly registered)
