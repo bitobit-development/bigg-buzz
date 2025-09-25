@@ -42,10 +42,24 @@ export async function createSubscriberToken(subscriber: SubscriberUser): Promise
 /**
  * Verify subscriber token from cookies (server-side)
  */
-export async function verifySubscriberToken(): Promise<SubscriberUser | null> {
+export async function verifySubscriberToken(request?: NextRequest): Promise<SubscriberUser | null> {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('subscriber-token')?.value
+    let token: string | undefined
+
+    if (request) {
+      // API route context - read from NextRequest cookies
+      token = request.cookies.get('subscriber-token')?.value
+    } else {
+      // Server component context - use Next.js cookies helper
+      try {
+        const cookieStore = await cookies()
+        token = cookieStore.get('subscriber-token')?.value
+      } catch (cookieError) {
+        // cookies() might not be available in API routes, ignore error
+        console.log('[AUTH] cookies() not available in this context, using request cookies instead')
+        return null
+      }
+    }
 
     if (!token) {
       return null
@@ -122,8 +136,8 @@ export async function getSubscriberUser(request?: NextRequest): Promise<Subscrib
     if (headerUser) return headerUser
   }
 
-  // Fall back to cookie (for server-side rendering)
-  return await verifySubscriberToken()
+  // Fall back to cookie (pass request object for API routes)
+  return await verifySubscriberToken(request)
 }
 
 /**
