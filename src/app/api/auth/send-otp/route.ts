@@ -94,6 +94,13 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Send OTP error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack available')
+    console.error('Error message:', error instanceof Error ? error.message : String(error))
+    console.error('Environment check:', {
+      CLICKATEL_API_KEY: process.env.CLICKATEL_API_KEY ? 'Set' : 'Not set',
+      DATABASE_URL: process.env.DATABASE_URL ? 'Set' : 'Not set',
+      NODE_ENV: process.env.NODE_ENV
+    })
 
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
@@ -103,7 +110,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error instanceof Error ? error.message : String(error) : undefined
+      },
       { status: 500 }
     )
   }
