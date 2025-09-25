@@ -16,7 +16,14 @@ export async function middleware(request: NextRequest) {
     // Check for subscriber token
     const token = request.cookies.get('subscriber-token')?.value
 
+    console.log('[MIDDLEWARE] Marketplace access attempt:', {
+      pathname,
+      hasToken: !!token,
+      tokenLength: token ? token.length : 0
+    })
+
     if (!token) {
+      console.log('[MIDDLEWARE] No subscriber token found, redirecting to sign-in')
       // Redirect to sign-in if no token
       return NextResponse.redirect(new URL('/sign-in', request.url))
     }
