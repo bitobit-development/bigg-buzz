@@ -53,6 +53,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   if (!subscriber) {
     throwError.notFound('Subscriber not found')
+    return // This line never executes, but TypeScript needs it
   }
 
   if (!subscriber.isActive) {
