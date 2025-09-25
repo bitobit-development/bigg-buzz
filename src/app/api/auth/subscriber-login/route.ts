@@ -145,8 +145,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { phone, otp } = LoginSchema.parse(body)
 
-    // Normalize phone number
-    const normalizedPhone = normalizePhoneNumber ? normalizePhoneNumber(phone) : phone
+    // Normalize phone number - ensure consistent format
+    const normalizedPhone = normalizePhoneNumber ? normalizePhoneNumber(phone) : (
+      phone.startsWith('0') ? '+27' + phone.substring(1) : phone
+    )
+    console.log(`[LOGIN] Original phone: ${phone}`)
     console.log(`[LOGIN] Normalized phone: ${normalizedPhone}`)
 
     // Verify OTP using direct database check
