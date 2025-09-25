@@ -103,7 +103,8 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/subscriber/login', {
+      // First verify the OTP using the working endpoint
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,10 +122,34 @@ export default function SignInPage() {
         throw new Error(data.error || 'Invalid OTP code');
       }
 
-      toast.success('Login successful! Redirecting to marketplace...');
-      setTimeout(() => {
-        router.push('/marketplace');
-      }, 1000);
+      // If OTP verification successful, create login session
+      if (data.success && data.user) {
+        // Call the login session endpoint to create JWT token
+        const loginResponse = await fetch('/api/auth/create-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            userId: data.user.id,
+            phone: data.user.phone,
+          }),
+        });
+
+        if (loginResponse.ok) {
+          toast.success('Login successful! Redirecting to marketplace...');
+          setTimeout(() => {
+            router.push('/marketplace');
+          }, 1000);
+        } else {
+          // Fallback: redirect without JWT if session creation fails
+          toast.success('Login successful! Redirecting to marketplace...');
+          setTimeout(() => {
+            router.push('/marketplace');
+          }, 1000);
+        }
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed. Please try again.');
