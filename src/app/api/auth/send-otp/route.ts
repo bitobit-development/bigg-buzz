@@ -138,22 +138,26 @@ export async function POST(request: NextRequest) {
     // Check if this is a test user
     const isTestUser = normalizedPhone === normalizePhoneNumber(process.env.TEST_USER_PHONE || '')
 
-    // Check if subscriber exists (skip for test users)
-    let subscriber = null
-    if (!isTestUser) {
-      subscriber = await prisma.subscriber.findUnique({
-        where: { phone: normalizedPhone },
-      })
+    // Check if subscriber exists (always lookup, regardless of test user status)
+    const subscriber = await prisma.subscriber.findUnique({
+      where: { phone: normalizedPhone },
+    })
 
-      if (!subscriber) {
+    if (!subscriber) {
+      if (isTestUser) {
+        console.log(`[SEND-OTP] Test user not found in database: ${normalizedPhone}`)
+        console.log(`[SEND-OTP] SMS will be sent but no token will be stored`)
+      } else {
         return NextResponse.json(
           { error: 'Subscriber not found with this phone number' },
           { status: 404 }
         )
       }
     } else {
-      // For test users, try to find existing test subscriber or create a virtual one
-      console.log(`[SMS] Processing test user: ${normalizedPhone}`)
+      console.log(`[SEND-OTP] Subscriber found: ${subscriber.firstName} ${subscriber.lastName}`)
+      if (isTestUser) {
+        console.log(`[SEND-OTP] Processing test user: ${normalizedPhone}`)
+      }
     }
 
     // For registration flow, allow sending OTP to inactive subscribers (newly registered)
