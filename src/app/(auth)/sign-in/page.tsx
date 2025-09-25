@@ -103,8 +103,8 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Verify OTP and create login session in one call
-      const response = await fetch('/api/auth/verify-otp', {
+      // Use dedicated login endpoint completely outside NextAuth scope
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -113,7 +113,6 @@ export default function SignInPage() {
         body: JSON.stringify({
           phone: formData.phone,
           otp: formData.otp,
-          createSession: true, // Request JWT token creation
         }),
       });
 
