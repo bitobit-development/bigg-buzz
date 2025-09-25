@@ -103,8 +103,8 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Use dedicated subscriber login endpoint to avoid NextAuth conflicts
-      const response = await fetch('/api/subscriber-login', {
+      // Use dedicated subscriber login endpoint within auth namespace
+      const response = await fetch('/api/auth/subscriber-login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
