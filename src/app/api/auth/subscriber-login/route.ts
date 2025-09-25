@@ -5,17 +5,89 @@ import { z } from 'zod'
 let prisma: any
 let createSubscriberToken: any
 let sanitizeInput: any
-let verifyOTP: any
 let normalizePhoneNumber: any
 
 try {
   prisma = require('@/lib/prisma').prisma
   createSubscriberToken = require('@/lib/auth/subscriber-auth').createSubscriberToken
   sanitizeInput = require('@/lib/security').sanitizeInput
-  verifyOTP = require('@/lib/sms').verifyOTP
   normalizePhoneNumber = require('@/lib/validation').normalizePhoneNumber
 } catch (importError) {
   console.error('[LOGIN] Import error:', importError)
+}
+
+// Direct OTP verification function to avoid import issues
+async function verifyOTPDirect(phone: string, code: string): Promise<boolean> {
+  try {
+    if (!prisma) return false
+
+    console.log(`[OTP] Verifying OTP for ${phone}: ${code}`)
+
+    // Check subscriber tokens
+    const expectedToken = `${phone}:${code}`
+    const subscriberToken = await prisma.subscriberToken.findFirst({
+      where: {
+        token: expectedToken,
+        type: 'OTP_VERIFICATION',
+        isUsed: false,
+        expiresAt: {
+          gt: new Date(), // Not expired
+        },
+      },
+      include: {
+        subscriber: {
+          select: {
+            phone: true
+          }
+        }
+      }
+    })
+
+    if (subscriberToken && subscriberToken.subscriber?.phone === phone) {
+      console.log(`[OTP] Subscriber database verification successful`)
+      // Mark as used immediately to prevent reuse
+      await prisma.subscriberToken.update({
+        where: { id: subscriberToken.id },
+        data: { isUsed: true },
+      })
+      return true
+    }
+
+    // Also check user tokens as fallback
+    const userToken = await prisma.userToken.findFirst({
+      where: {
+        token: expectedToken,
+        type: 'OTP_VERIFICATION',
+        isUsed: false,
+        expiresAt: {
+          gt: new Date(), // Not expired
+        },
+      },
+      include: {
+        user: {
+          select: {
+            phone: true
+          }
+        }
+      }
+    })
+
+    if (userToken && userToken.user?.phone === phone) {
+      console.log(`[OTP] User database verification successful`)
+      // Mark as used immediately to prevent reuse
+      await prisma.userToken.update({
+        where: { id: userToken.id },
+        data: { isUsed: true },
+      })
+      return true
+    }
+
+    console.log(`[OTP] No valid token found for ${expectedToken}`)
+    return false
+  } catch (error) {
+    console.error('OTP verification error:', error)
+    return false
+  }
 }
 
 const LoginSchema = z.object({
@@ -41,12 +113,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!verifyOTP) {
-      return NextResponse.json(
-        { error: 'OTP verification service unavailable' },
-        { status: 500 }
-      )
-    }
+    // OTP verification is now handled directly in this file
 
     if (!createSubscriberToken) {
       return NextResponse.json(
@@ -62,8 +129,8 @@ export async function POST(request: NextRequest) {
     const normalizedPhone = normalizePhoneNumber ? normalizePhoneNumber(phone) : phone
     console.log(`[LOGIN] Normalized phone: ${normalizedPhone}`)
 
-    // Verify OTP using the existing SMS verification system
-    const isValidOTP = await verifyOTP(normalizedPhone, otp)
+    // Verify OTP using direct database check
+    const isValidOTP = await verifyOTPDirect(normalizedPhone, otp)
     console.log(`[LOGIN] OTP verification result: ${isValidOTP}`)
 
     if (!isValidOTP) {
