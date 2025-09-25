@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { SignJWT } from 'jose'
 
 // Import with try-catch protection
 let prisma: any
-let createSubscriberToken: any
 let sanitizeInput: any
 let normalizePhoneNumber: any
 
 try {
   prisma = require('@/lib/prisma').prisma
-  createSubscriberToken = require('@/lib/auth/subscriber-auth').createSubscriberToken
   sanitizeInput = require('@/lib/security').sanitizeInput
   normalizePhoneNumber = require('@/lib/validation').normalizePhoneNumber
 } catch (importError) {
@@ -90,6 +89,34 @@ async function verifyOTPDirect(phone: string, code: string): Promise<boolean> {
   }
 }
 
+// Direct token creation function to avoid import issues
+async function createTokenDirect(subscriber: any): Promise<string> {
+  try {
+    const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'dev-jwt-secret-key-32-characters-minimum-length')
+
+    const token = new SignJWT({
+      id: subscriber.id,
+      firstName: subscriber.firstName || '',
+      lastName: subscriber.lastName || '',
+      phone: subscriber.phone || '',
+      email: subscriber.email || null,
+      isActive: subscriber.isActive,
+      phoneVerified: subscriber.phoneVerified,
+      termsAccepted: subscriber.termsAccepted,
+      type: 'subscriber',
+      iat: Math.floor(Date.now() / 1000),
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime('30d') // 30 days
+      .setIssuedAt()
+
+    return await token.sign(JWT_SECRET)
+  } catch (error) {
+    console.error('Direct token creation error:', error)
+    throw error
+  }
+}
+
 const LoginSchema = z.object({
   phone: z.string()
     .min(1, 'Phone number is required')
@@ -113,14 +140,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // OTP verification is now handled directly in this file
-
-    if (!createSubscriberToken) {
-      return NextResponse.json(
-        { error: 'Token service unavailable' },
-        { status: 500 }
-      )
-    }
+    // OTP verification and token creation are now handled directly in this file
 
     const body = await request.json()
     const { phone, otp } = LoginSchema.parse(body)
@@ -194,17 +214,8 @@ export async function POST(request: NextRequest) {
       console.log('[LOGIN] Could not update last login time:', error)
     }
 
-    // Create JWT token
-    const token = await createSubscriberToken({
-      id: subscriber.id,
-      firstName: subscriber.firstName,
-      lastName: subscriber.lastName,
-      phone: subscriber.phone,
-      email: subscriber.email,
-      isActive: subscriber.isActive,
-      phoneVerified: !!subscriber.phoneVerified,
-      termsAccepted: subscriber.termsAccepted
-    })
+    // Create JWT token using direct function
+    const token = await createTokenDirect(subscriber)
 
     console.log(`[LOGIN] Successfully created token for subscriber: ${subscriber.id}`)
 
