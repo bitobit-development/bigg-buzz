@@ -188,10 +188,26 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { phone, otp } = LoginSchema.parse(body)
 
-    // Normalize phone number - ensure consistent format
-    const normalizedPhone = normalizePhoneNumber ? normalizePhoneNumber(phone) : (
-      phone.startsWith('0') ? '+27' + phone.substring(1) : phone
-    )
+    // Normalize phone number - MUST match send-otp endpoint format exactly
+    let normalizedPhone = phone
+
+    // Apply same normalization logic as send-otp endpoint
+    if (normalizePhoneNumber) {
+      normalizedPhone = normalizePhoneNumber(phone)
+    } else {
+      // Fallback normalization that matches validation.ts logic exactly
+      const cleanPhone = phone.replace(/[\s\-\(\)]/g, '')
+      if (cleanPhone.startsWith('0')) {
+        normalizedPhone = '+27' + cleanPhone.substring(1)
+      } else if (cleanPhone.startsWith('27')) {
+        normalizedPhone = '+' + cleanPhone
+      } else if (cleanPhone.startsWith('+27')) {
+        normalizedPhone = cleanPhone
+      } else {
+        normalizedPhone = phone
+      }
+    }
+
     console.log(`[LOGIN] Original phone: ${phone}`)
     console.log(`[LOGIN] Normalized phone: ${normalizedPhone}`)
 
