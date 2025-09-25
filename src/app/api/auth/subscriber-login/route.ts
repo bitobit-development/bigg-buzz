@@ -24,6 +24,29 @@ async function verifyOTPDirect(phone: string, code: string): Promise<boolean> {
 
     // Check subscriber tokens
     const expectedToken = `${phone}:${code}`
+    console.log(`[OTP] Expected token format: ${expectedToken}`)
+
+    // Debug: Let's check what tokens exist in the database
+    const allOTPTokens = await prisma.subscriberToken.findMany({
+      where: {
+        type: 'OTP_VERIFICATION',
+        isUsed: false,
+        expiresAt: {
+          gt: new Date(), // Not expired
+        },
+      },
+      select: {
+        token: true,
+        expiresAt: true,
+        subscriber: {
+          select: {
+            phone: true
+          }
+        }
+      }
+    })
+    console.log(`[OTP] Available subscriber OTP tokens:`, allOTPTokens)
+
     const subscriberToken = await prisma.subscriberToken.findFirst({
       where: {
         token: expectedToken,
@@ -53,6 +76,26 @@ async function verifyOTPDirect(phone: string, code: string): Promise<boolean> {
     }
 
     // Also check user tokens as fallback
+    const allUserOTPTokens = await prisma.userToken.findMany({
+      where: {
+        type: 'OTP_VERIFICATION',
+        isUsed: false,
+        expiresAt: {
+          gt: new Date(), // Not expired
+        },
+      },
+      select: {
+        token: true,
+        expiresAt: true,
+        user: {
+          select: {
+            phone: true
+          }
+        }
+      }
+    })
+    console.log(`[OTP] Available user OTP tokens:`, allUserOTPTokens)
+
     const userToken = await prisma.userToken.findFirst({
       where: {
         token: expectedToken,
