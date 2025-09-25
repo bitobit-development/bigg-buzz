@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, withDatabase } from '@/lib/prisma'
 import { withErrorHandler } from '@/lib/error-handler'
 import { ProductFilterSchema } from '@/lib/validations/product'
 import { requireSubscriberAuth } from '@/lib/auth/subscriber-auth'
@@ -108,26 +108,28 @@ export const GET = withErrorHandler(async (request: NextRequest) => {
   orderBy[sortBy] = sortOrder
 
   try {
-    // Execute query
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy,
-        include: {
-          vendor: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              isActive: true,
+    // Execute query with database retry wrapper
+    const [products, total] = await withDatabase(async () => {
+      return await Promise.all([
+        prisma.product.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy,
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                isActive: true,
+              },
             },
           },
-        },
-      }),
-      prisma.product.count({ where }),
-    ])
+        }),
+        prisma.product.count({ where }),
+      ])
+    })
 
     // Transform products for response
     const transformedProducts = products.map(product => ({

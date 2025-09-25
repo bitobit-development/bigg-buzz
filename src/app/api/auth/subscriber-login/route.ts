@@ -295,13 +295,21 @@ export async function POST(request: NextRequest) {
       token
     })
 
-    // Set secure cookie
+    // Set secure cookie with enhanced Vercel compatibility
     response.cookies.set('subscriber-token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60, // 30 days
-      path: '/' // Explicitly set path for Vercel compatibility
+      path: '/', // Explicitly set path for Vercel compatibility
+      // Add domain setting for Vercel deployments
+      ...(process.env.VERCEL && process.env.VERCEL_URL && {
+        domain: process.env.VERCEL_URL.includes('://')
+          ? new URL(process.env.VERCEL_URL).hostname
+          : process.env.VERCEL_URL
+      }),
+      // Priority flag for modern browsers
+      priority: 'high' as any
     })
 
     return response

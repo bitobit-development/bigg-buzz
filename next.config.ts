@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons'],
   },
+  // Enable external packages for better Vercel performance
+  serverExternalPackages: ['@prisma/client'],
   images: {
     remotePatterns: [
       {
@@ -16,6 +18,13 @@ const nextConfig: NextConfig = {
   eslint: {
     dirs: ['src'],
     ignoreDuringBuilds: true,
+  },
+  // Vercel optimizations
+  output: 'standalone',
+  // Ensure serverless functions have proper timeout
+  serverRuntimeConfig: {
+    // API routes timeout (30s max on Vercel Hobby)
+    apiTimeout: process.env.VERCEL ? 28000 : 30000,
   },
 };
 
