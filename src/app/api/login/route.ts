@@ -53,26 +53,25 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   if (!subscriber) {
     throwError.notFound('Subscriber not found')
-    return // This line never executes, but TypeScript needs it
   }
 
-  if (!subscriber.isActive) {
+  if (!subscriber!.isActive) {
     throwError.authorization('Account is not active')
   }
 
-  if (!subscriber.phoneVerified) {
+  if (!subscriber!.phoneVerified) {
     throwError.authorization('Phone number not verified')
   }
 
   // Validate required fields
-  if (!subscriber.firstName || !subscriber.lastName || !subscriber.phone) {
+  if (!subscriber!.firstName || !subscriber!.lastName || !subscriber!.phone) {
     throwError.validation('Account profile is incomplete. Please contact support.')
   }
 
   // Update last login
   try {
     await prisma.subscriber.update({
-      where: { id: subscriber.id },
+      where: { id: subscriber!.id },
       data: { updatedAt: new Date() }
     })
   } catch (error) {
@@ -81,28 +80,28 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
 
   // Create JWT token
   const token = await createSubscriberToken({
-    id: subscriber.id,
-    firstName: subscriber.firstName,
-    lastName: subscriber.lastName,
-    phone: subscriber.phone,
-    email: subscriber.email,
-    isActive: subscriber.isActive,
-    phoneVerified: !!subscriber.phoneVerified,
-    termsAccepted: subscriber.termsAccepted
+    id: subscriber!.id,
+    firstName: subscriber!.firstName,
+    lastName: subscriber!.lastName,
+    phone: subscriber!.phone,
+    email: subscriber!.email,
+    isActive: subscriber!.isActive,
+    phoneVerified: !!subscriber!.phoneVerified,
+    termsAccepted: subscriber!.termsAccepted
   })
 
-  console.log(`[LOGIN] Successfully created token for subscriber: ${subscriber.id}`)
+  console.log(`[LOGIN] Successfully created token for subscriber: ${subscriber!.id}`)
 
   // Create response
   const response = NextResponse.json({
     success: true,
     message: 'Login successful',
     user: {
-      id: subscriber.id,
-      firstName: subscriber.firstName,
-      lastName: subscriber.lastName,
-      phone: subscriber.phone,
-      email: subscriber.email
+      id: subscriber!.id,
+      firstName: subscriber!.firstName,
+      lastName: subscriber!.lastName,
+      phone: subscriber!.phone,
+      email: subscriber!.email
     },
     token
   })
