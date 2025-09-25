@@ -103,7 +103,7 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // First verify the OTP using the working endpoint
+      // Verify OTP and create login session in one call
       const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: {
@@ -113,6 +113,7 @@ export default function SignInPage() {
         body: JSON.stringify({
           phone: formData.phone,
           otp: formData.otp,
+          createSession: true, // Request JWT token creation
         }),
       });
 
@@ -122,33 +123,12 @@ export default function SignInPage() {
         throw new Error(data.error || 'Invalid OTP code');
       }
 
-      // If OTP verification successful, create login session
+      // If successful, redirect to marketplace
       if (data.success && data.user) {
-        // Call the login session endpoint to create JWT token
-        const loginResponse = await fetch('/api/session/create', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            userId: data.user.id,
-            phone: data.user.phone,
-          }),
-        });
-
-        if (loginResponse.ok) {
-          toast.success('Login successful! Redirecting to marketplace...');
-          setTimeout(() => {
-            router.push('/marketplace');
-          }, 1000);
-        } else {
-          // Fallback: redirect without JWT if session creation fails
-          toast.success('Login successful! Redirecting to marketplace...');
-          setTimeout(() => {
-            router.push('/marketplace');
-          }, 1000);
-        }
+        toast.success('Login successful! Redirecting to marketplace...');
+        setTimeout(() => {
+          router.push('/marketplace');
+        }, 1000);
       }
     } catch (error: any) {
       console.error('Login error:', error);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { otpVerificationSchema, normalizePhoneNumber } from '@/lib/validation'
 import { verifyOTP, cleanupExpiredOTPs } from '@/lib/sms'
+import { createSubscriberToken } from '@/lib/auth/subscriber-auth'
 
 // Note: Using Node.js runtime for Prisma compatibility
 
@@ -21,7 +22,10 @@ export async function POST(request: NextRequest) {
     await cleanupExpiredOTPs()
 
     const body = await request.json()
-    console.log(`[API] Received OTP verification request:`, { phone: body.phone, otp: body.otp?.substring(0, 3) + '***' })
+    console.log(`[API] Received OTP verification request:`, { phone: body.phone, otp: body.otp?.substring(0, 3) + '***', createSession: body.createSession })
+
+    // Check if this is a login request (create JWT session)
+    const createSession = body.createSession === true
 
     // Validate input
     const validatedData = otpVerificationSchema.parse(body)
@@ -101,9 +105,11 @@ export async function POST(request: NextRequest) {
     })
 
     console.log(`[API] Verification successful for subscriber: ${subscriber.id}`)
-    return NextResponse.json({
+
+    // Prepare response data
+    const responseData = {
       success: true,
-      message: 'Phone number verified successfully',
+      message: createSession ? 'Login successful' : 'Phone number verified successfully',
       user: {
         id: subscriber.id,
         firstName: subscriber.firstName,
@@ -111,10 +117,46 @@ export async function POST(request: NextRequest) {
         phone: subscriber.phone,
         phoneVerified: true,
         isActive: subscriber.isActive,
-        needsTermsAcceptance: !subscriber.termsAccepted, // Indicate if terms acceptance is needed
-        isTestUser: testUser, // Include test user flag for frontend
+        needsTermsAcceptance: !subscriber.termsAccepted,
+        isTestUser: testUser,
       },
-    })
+    }
+
+    // If login session requested, create JWT token
+    if (createSession && subscriber.isActive && subscriber.firstName && subscriber.lastName) {
+      try {
+        const token = await createSubscriberToken({
+          id: subscriber.id,
+          firstName: subscriber.firstName,
+          lastName: subscriber.lastName,
+          phone: subscriber.phone,
+          email: subscriber.email,
+          isActive: subscriber.isActive,
+          phoneVerified: true,
+          termsAccepted: subscriber.termsAccepted || false
+        })
+
+        const response = NextResponse.json({
+          ...responseData,
+          token
+        })
+
+        // Set secure cookie
+        response.cookies.set('subscriber-token', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 30 * 24 * 60 * 60 // 30 days
+        })
+
+        return response
+      } catch (error) {
+        console.error(`[API] JWT token creation failed:`, error)
+        // Fall back to basic response if token creation fails
+      }
+    }
+
+    return NextResponse.json(responseData)
 
   } catch (error) {
     console.error('[API] OTP verification error:', error)
