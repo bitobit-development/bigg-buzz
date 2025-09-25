@@ -125,7 +125,7 @@ export default function SignInPage() {
       // If OTP verification successful, create login session
       if (data.success && data.user) {
         // Call the login session endpoint to create JWT token
-        const loginResponse = await fetch('/api/auth/create-session', {
+        const loginResponse = await fetch('/api/session/create', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
