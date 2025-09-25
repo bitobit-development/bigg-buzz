@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createSubscriberToken } from '@/lib/auth/subscriber-auth'
-import { withErrorHandler, throwError } from '@/lib/error-handler'
 import { sanitizeInput } from '@/lib/security'
 import { verifyOTP } from '@/lib/sms'
 import { normalizePhoneNumber } from '@/lib/validation'
@@ -18,7 +17,8 @@ const LoginSchema = z.object({
     .transform(val => sanitizeInput(val))
 })
 
-export const POST = withErrorHandler(async (request: NextRequest) => {
+export async function POST(request: NextRequest) {
+  try {
   console.log('[LOGIN] Starting login process')
 
   const body = await request.json()
@@ -33,7 +33,10 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   console.log(`[LOGIN] OTP verification result: ${isValidOTP}`)
 
   if (!isValidOTP) {
-    throwError.authentication('Invalid or expired OTP code')
+    return NextResponse.json(
+      { error: 'Invalid or expired OTP code' },
+      { status: 401 }
+    )
   }
 
   // Find subscriber
@@ -52,20 +55,32 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   })
 
   if (!subscriber) {
-    throwError.notFound('Subscriber not found')
+    return NextResponse.json(
+      { error: 'Subscriber not found' },
+      { status: 404 }
+    )
   }
 
   if (!subscriber!.isActive) {
-    throwError.authorization('Account is not active')
+    return NextResponse.json(
+      { error: 'Account is not active' },
+      { status: 403 }
+    )
   }
 
   if (!subscriber!.phoneVerified) {
-    throwError.authorization('Phone number not verified')
+    return NextResponse.json(
+      { error: 'Phone number not verified' },
+      { status: 403 }
+    )
   }
 
   // Validate required fields
   if (!subscriber!.firstName || !subscriber!.lastName || !subscriber!.phone) {
-    throwError.validation('Account profile is incomplete. Please contact support.')
+    return NextResponse.json(
+      { error: 'Account profile is incomplete. Please contact support.' },
+      { status: 400 }
+    )
   }
 
   // Update last login
@@ -115,4 +130,19 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
   })
 
   return response
-})
+  } catch (error) {
+    console.error('[LOGIN] Error:', error)
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid input data', details: error.errors },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
