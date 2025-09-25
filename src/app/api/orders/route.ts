@@ -212,7 +212,7 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       }
     }
 
-    // Use transaction for order creation and stock updates
+    // Use transaction for order creation and stock updates with extended timeout
     const result = await prisma.$transaction(async (tx) => {
       // Create order
       const order = await tx.order.create({
@@ -301,6 +301,8 @@ export const POST = withErrorHandler(async (request: NextRequest) => {
       })
 
       return { order, orderItems }
+    }, {
+      timeout: 15000 // 15 seconds timeout
     })
 
     // Transform response
